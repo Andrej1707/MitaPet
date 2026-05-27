@@ -1,0 +1,12 @@
+node_modules/
+dist/win-unpacked/
+dist/*.exe
+dist/*.blockmap
+dist/builder-debug.yml
+release-assets/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db

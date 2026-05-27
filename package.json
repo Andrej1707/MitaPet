@@ -1,0 +1,52 @@
+{
+  "name": "mita-desktop-pet",
+  "version": "1.0.0",
+  "description": "Standalone Windows desktop pet app for MitaPet.",
+  "main": "src/main.js",
+  "author": "PC",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "test": "node scripts/smoke-test.js",
+    "dist": "electron-builder --win nsis",
+    "pack": "electron-builder --win dir"
+  },
+  "build": {
+    "appId": "local.mitadesktoppet.app",
+    "productName": "MitaDesktopPet",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "src/main.js"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "MitaDesktopPet-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^39.8.5",
+    "electron-builder": "^26.8.1"
+  }
+}
