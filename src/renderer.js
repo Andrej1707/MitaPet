@@ -1,84 +1,132 @@
-const COLS = 8;
-const ROWS = 9;
+const FRAME_WIDTH = 192;
+const FRAME_HEIGHT = 208;
 
-const ANIMATIONS = {
-  idle: {
-    frames: [
-      [0, 0, 280],
-      [0, 1, 110],
-      [0, 2, 110],
-      [0, 3, 140],
-      [0, 4, 140],
-      [0, 5, 320]
-    ],
-    loop: true
-  },
-  "walk-right": { frames: makeRow(1, 8, 120), loop: true },
-  "walk-left": { frames: makeRow(2, 8, 120), loop: true },
-  walk: { frames: makeRow(1, 8, 120), loop: true },
-  jumping: { frames: makeRow(4, 5, 140), loop: false, fallback: "idle" },
-  sleep: {
-    frames: [
-      [0, 3, 900],
-      [0, 4, 900]
-    ],
-    loop: true
-  },
-  excited: { frames: makeRow(3, 4, 110), loop: true },
-  failed: { frames: makeRow(5, 8, 150), loop: true },
-  waiting: { frames: makeRow(6, 6, 150), loop: true },
-  running: { frames: makeRow(7, 6, 120), loop: true },
-  review: { frames: makeRow(8, 6, 150), loop: true }
+const ANIMS = {
+  idle: { row: 0, frames: 6, fps: 6 },
+  run: { row: 1, frames: 8, fps: 10 },
+  walk: { row: 1, frames: 8, fps: 10 },
+  wave: { row: 3, frames: 4, fps: 6 },
+  excited: { row: 4, frames: 5, fps: 8 },
+  jumping: { row: 4, frames: 5, fps: 8 },
+  sleep: { row: 5, frames: 8, fps: 5 },
+  sad: { row: 6, frames: 6, fps: 5 },
+  pray: { row: 7, frames: 6, fps: 5 },
+  shy: { row: 8, frames: 6, fps: 5 }
+};
+
+const BUBBLES = {
+  idle: ["(^・ω・^) Hiii~", "♪~"],
+  run: ["Weeee~!", "Catch me!", "Hya!"],
+  walk: ["Weeee~!", "Catch me!", "Hya!"],
+  excited: ["KYAAA~!", "YAY!! ✨", "SUGOI!!"],
+  jumping: ["KYAAA~!", "YAY!! ✨", "SUGOI!!"],
+  sleep: ["💤 Zzzzz...", "むにゃ...", "(＿ ＿*)"],
+  sad: ["(´；ω；`)", "sniff...", "uwaaaa..."],
+  shy: [">///<", "h-huh...?", "あの..."],
+  pray: ["🙏", "Please...", "お願い..."],
+  wave: ["(^・ω・^) Hiii~", "♪~"]
 };
 
 const shell = document.getElementById("pet-shell");
 const hitbox = document.getElementById("pet-hitbox");
 const sprite = document.getElementById("pet-sprite");
+const bubble = document.getElementById("pet-bubble");
 const menu = document.getElementById("pet-menu");
 const nameEl = document.getElementById("pet-name");
 const descriptionEl = document.getElementById("pet-description");
 
-let animationTimer = null;
+let animationFrameId = 0;
+let lastFrameAt = 0;
+let accumulatedMs = 0;
+let frameIndex = 0;
 let currentMode = "idle";
 let drag = null;
 let clickSuppressUntil = 0;
+let bubbleTimer = 0;
 
-function makeRow(row, count, duration) {
-  return Array.from({ length: count }, (_, column) => [row, column, duration]);
+function normalizeMode(mode) {
+  if (mode === "walk-left" || mode === "walk-right") {
+    return "walk";
+  }
+  if (mode === "run-left" || mode === "run-right") {
+    return "run";
+  }
+  return ANIMS[mode] ? mode : "idle";
 }
 
-function setFrame(row, column) {
-  const x = (column / (COLS - 1)) * 100;
-  const y = (row / (ROWS - 1)) * 100;
-  sprite.style.backgroundPosition = `${x}% ${y}%`;
+function isLeftFacing(mode) {
+  return mode === "walk-left" || mode === "run-left";
 }
 
-function play(mode) {
-  clearTimeout(animationTimer);
-  currentMode = mode;
-  shell.classList.toggle("sleep", mode === "sleep");
-  shell.classList.toggle("excited", mode === "excited");
+function setFrame(row, frame) {
+  sprite.style.backgroundPosition = `${-(frame * FRAME_WIDTH)}px ${-(row * FRAME_HEIGHT)}px`;
+}
 
-  const animation = ANIMATIONS[mode] ?? ANIMATIONS.idle;
-  let index = 0;
+function setModeClasses(mode, normalizedMode) {
+  shell.classList.toggle("sleep", normalizedMode === "sleep");
+  shell.classList.toggle("excited", normalizedMode === "excited" || normalizedMode === "jumping");
+  shell.classList.toggle("facing-left", isLeftFacing(mode));
+}
 
-  const step = () => {
-    const [row, column, duration] = animation.frames[index];
-    setFrame(row, column);
-    index += 1;
+function animationLoop(now) {
+  const animation = ANIMS[currentMode] ?? ANIMS.idle;
+  if (!lastFrameAt) {
+    lastFrameAt = now;
+  }
 
-    if (index >= animation.frames.length) {
-      if (animation.loop) {
-        index = 0;
-      } else {
-        play(animation.fallback ?? "idle");
-        return;
-      }
-    }
-    animationTimer = window.setTimeout(step, duration);
-  };
+  accumulatedMs += now - lastFrameAt;
+  lastFrameAt = now;
 
-  step();
+  const frameMs = 1000 / animation.fps;
+  while (accumulatedMs >= frameMs) {
+    accumulatedMs -= frameMs;
+    frameIndex = (frameIndex + 1) % animation.frames;
+  }
+
+  setFrame(animation.row, frameIndex);
+  animationFrameId = window.requestAnimationFrame(animationLoop);
+}
+
+function play(mode, options = {}) {
+  const normalizedMode = normalizeMode(mode);
+  currentMode = normalizedMode;
+  frameIndex = 0;
+  accumulatedMs = 0;
+  lastFrameAt = 0;
+  setModeClasses(mode, normalizedMode);
+  setFrame(ANIMS[normalizedMode].row, frameIndex);
+
+  if (animationFrameId) {
+    window.cancelAnimationFrame(animationFrameId);
+  }
+  animationFrameId = window.requestAnimationFrame(animationLoop);
+
+  if (options.forceBubble || Math.random() < 0.6) {
+    showBubble(normalizedMode);
+  }
+}
+
+function pick(values) {
+  return values[Math.floor(Math.random() * values.length)];
+}
+
+function showBubble(mode, message) {
+  const messages = BUBBLES[mode] ?? BUBBLES.idle;
+  bubble.textContent = message ?? pick(messages);
+  bubble.hidden = false;
+  window.clearTimeout(bubbleTimer);
+  window.requestAnimationFrame(() => bubble.classList.add("visible"));
+  bubbleTimer = window.setTimeout(() => {
+    bubble.classList.remove("visible");
+    bubbleTimer = window.setTimeout(() => {
+      bubble.hidden = true;
+    }, 220);
+  }, 2800);
+}
+
+function showClickBubble() {
+  const reactionMessages = ["Hi!", "♪~", "KYAAA~!", "h-huh...?"];
+  showBubble(currentMode, pick(reactionMessages));
 }
 
 function showMenu() {
@@ -93,7 +141,7 @@ window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
   nameEl.textContent = manifest.displayName ?? "MitaPet";
   descriptionEl.textContent = manifest.description ?? "Desktop pet";
   sprite.style.backgroundImage = `url("${spritesheetUrl}")`;
-  play(mode ?? "idle");
+  play(mode ?? "idle", { forceBubble: false });
 });
 
 window.mitaPet.onMode((mode) => play(mode));
@@ -104,14 +152,11 @@ hitbox.addEventListener("pointerdown", (event) => {
   }
   hitbox.setPointerCapture(event.pointerId);
   window.mitaPet.dragStart();
-  const bounds = window.screen;
   drag = {
     startScreenX: event.screenX,
     startScreenY: event.screenY,
     startWindowX: window.screenX,
-    startWindowY: window.screenY,
-    screenLeft: bounds.availLeft ?? 0,
-    screenTop: bounds.availTop ?? 0
+    startWindowY: window.screenY
   };
   shell.classList.add("dragging");
 });
@@ -141,6 +186,7 @@ hitbox.addEventListener("click", () => {
     return;
   }
   hideMenu();
+  showClickBubble();
   window.mitaPet.clickReaction();
 });
 

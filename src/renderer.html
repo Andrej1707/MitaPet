@@ -9,8 +9,11 @@
   <body>
     <main id="pet-shell" aria-label="MitaDesktopPet">
       <button id="pet-hitbox" type="button" aria-label="MitaPet">
-        <span id="pet-sprite" aria-hidden="true"></span>
+        <span id="pet-visual" aria-hidden="true">
+          <span id="pet-sprite"></span>
+        </span>
       </button>
+      <div id="pet-bubble" aria-live="polite" hidden></div>
       <section id="pet-menu" hidden>
         <header>
           <strong id="pet-name">MitaPet</strong>
@@ -19,8 +22,12 @@
         <div class="mode-grid">
           <button data-mode="idle" type="button">Idle</button>
           <button data-mode="walk" type="button">Walk</button>
-          <button data-mode="sleep" type="button">Sleep</button>
+          <button data-mode="wave" type="button">Wave</button>
           <button data-mode="excited" type="button">Excited</button>
+          <button data-mode="sleep" type="button">Sleep</button>
+          <button data-mode="sad" type="button">Sad</button>
+          <button data-mode="pray" type="button">Pray</button>
+          <button data-mode="shy" type="button">Shy</button>
         </div>
       </section>
     </main>

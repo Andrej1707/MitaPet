@@ -47,10 +47,30 @@ for (const expected of [
 }
 
 const rendererSource = fs.readFileSync(path.join(root, "src/renderer.js"), "utf8");
-for (const expected of ["idle", "walk", "sleep", "excited", "backgroundPosition"]) {
+for (const expected of [
+  "requestAnimationFrame",
+  "accumulatedMs",
+  "backgroundPosition",
+  "FRAME_WIDTH",
+  "FRAME_HEIGHT",
+  "idle",
+  "walk",
+  "wave",
+  "excited",
+  "sleep",
+  "sad",
+  "pray",
+  "shy",
+  "showBubble"
+]) {
   if (!rendererSource.includes(expected)) {
     throw new Error(`Renderer is missing: ${expected}`);
   }
+}
+
+const rendererHtml = fs.readFileSync(path.join(root, "src/renderer.html"), "utf8");
+if (!rendererHtml.includes("pet-bubble")) {
+  throw new Error("Renderer markup is missing the bubble element");
 }
 
 console.log("Smoke test passed: project files, pet manifest, sprite asset, and core desktop-pet features are present.");

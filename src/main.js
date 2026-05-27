@@ -4,10 +4,20 @@ const path = require("path");
 
 const PET_SIZE = 192;
 const WINDOW_WIDTH = 220;
-const WINDOW_HEIGHT = 246;
+const WINDOW_HEIGHT = 310;
 const MOVE_STEP_MS = 16;
 const RANDOM_ACTION_MIN_MS = 4500;
 const RANDOM_ACTION_MAX_MS = 12000;
+const MENU_MODES = [
+  ["idle", "Idle"],
+  ["walk", "Walk"],
+  ["wave", "Wave"],
+  ["excited", "Excited"],
+  ["sleep", "Sleep"],
+  ["sad", "Sad"],
+  ["pray", "Pray"],
+  ["shy", "Shy"]
+];
 
 let mainWindow = null;
 let tray = null;
@@ -88,8 +98,8 @@ function createContextMenu() {
   return Menu.buildFromTemplate([
     {
       label: "Modus",
-      submenu: ["idle", "walk", "sleep", "excited"].map((mode) => ({
-        label: mode,
+      submenu: MENU_MODES.map(([mode, label]) => ({
+        label,
         type: "radio",
         checked: settings.mode === mode,
         click: () => setMode(mode, true)
@@ -221,17 +231,35 @@ function scheduleRandomAction() {
       return;
     }
     const roll = Math.random();
-    if (roll < 0.45) {
+    if (roll < 0.34) {
       wander();
-    } else if (roll < 0.75) {
+    } else if (roll < 0.48) {
       hop();
-    } else if (roll < 0.9) {
-      temporaryMode("sleep", 2600);
     } else {
-      temporaryMode("excited", 2200);
+      const actions = [
+        ["idle", 2200],
+        ["wave", 2600],
+        ["excited", 2300],
+        ["sleep", 3600],
+        ["sad", 3000],
+        ["pray", 3000],
+        ["shy", 3000]
+      ];
+      const [mode, duration] = actions[Math.floor(Math.random() * actions.length)];
+      temporaryMode(mode, duration);
     }
     scheduleRandomAction();
   }, wait);
+}
+
+function pickMoveMode(direction) {
+  const base = Math.random() > 0.45 ? "walk" : "run";
+  return `${base}-${direction > 0 ? "right" : "left"}`;
+}
+
+function restoreRestingMode() {
+  const mode = settings.mode === "walk" ? "idle" : settings.mode;
+  setMode(mode, false);
 }
 
 function stopMove() {
@@ -258,7 +286,7 @@ function wander() {
   const startAt = Date.now();
 
   currentMove = { startX, startY, targetX, targetY, durationMs, startAt };
-  setMode(direction > 0 ? "walk-right" : "walk-left", false);
+  setMode(pickMoveMode(direction), false);
 
   moveTimer = setInterval(() => {
     const t = Math.min((Date.now() - startAt) / durationMs, 1);
@@ -270,7 +298,7 @@ function wander() {
       stopMove();
       settings.position = { x: targetX, y: targetY };
       saveSettings();
-      setMode(settings.mode === "sleep" ? "sleep" : "idle", false);
+      restoreRestingMode();
     }
   }, MOVE_STEP_MS);
 }
