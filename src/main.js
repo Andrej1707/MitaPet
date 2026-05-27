@@ -1,6 +1,13 @@
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen } = require("electron");
 const fs = require("fs");
 const path = require("path");
+const {
+  DEFAULT_COOLDOWN_MS,
+  DEFAULT_INTERVAL_MS,
+  analyzeCurrentScreen,
+  getPuddleOcrCommand,
+  normalizeInterval
+} = require("./screen-awareness");
 
 const PET_SIZE = 192;
 const WINDOW_WIDTH = 220;
@@ -24,6 +31,10 @@ let settings = {};
 let randomActionTimer = null;
 let moveTimer = null;
 let currentMove = null;
+let screenAwarenessTimer = null;
+let screenAwarenessBusy = false;
+let lastScreenMessageAt = 0;
+let lastScreenMessageKey = "";
 
 const assetsDir = path.join(__dirname, "..", "assets");
 const petManifestPath = path.join(assetsDir, "pet.json");
@@ -47,11 +58,18 @@ function loadSettings() {
     mode: "idle",
     position: null,
     startWithWindows: false,
+    screenAwareness: false,
+    gameTips: false,
+    screenOcrEnabled: false,
+    screenCaptureIntervalMs: DEFAULT_INTERVAL_MS,
+    screenMessageCooldownMs: DEFAULT_COOLDOWN_MS,
     ...readJson(settingsPath(), {})
   };
   if (!MENU_MODES.some(([mode]) => mode === settings.mode)) {
     settings.mode = "idle";
   }
+  settings.screenCaptureIntervalMs = normalizeInterval(settings.screenCaptureIntervalMs);
+  settings.screenMessageCooldownMs = Math.max(Number(settings.screenMessageCooldownMs) || DEFAULT_COOLDOWN_MS, 12000);
 }
 
 function saveSettings() {
@@ -97,6 +115,7 @@ function buildIcon() {
 
 function createContextMenu() {
   const startChecked = app.getLoginItemSettings().openAtLogin || settings.startWithWindows;
+  const ocrCommand = getPuddleOcrCommand();
   return Menu.buildFromTemplate([
     {
       label: "Modus",
@@ -106,6 +125,37 @@ function createContextMenu() {
         checked: settings.mode === mode,
         click: () => setMode(mode, true)
       }))
+    },
+    { type: "separator" },
+    {
+      label: `Screen Awareness: ${settings.screenAwareness ? "On" : "Off"}`,
+      type: "checkbox",
+      checked: Boolean(settings.screenAwareness),
+      click: (menuItem) => toggleScreenAwareness(menuItem.checked)
+    },
+    {
+      label: `Game Tips Mode: ${settings.gameTips ? "On" : "Off"}`,
+      type: "checkbox",
+      enabled: Boolean(settings.screenAwareness),
+      checked: Boolean(settings.gameTips),
+      click: (menuItem) => toggleGameTips(menuItem.checked)
+    },
+    {
+      label: "Screenshot-Intervall",
+      enabled: Boolean(settings.screenAwareness),
+      submenu: [5000, 10000, 30000, 60000].map((interval) => ({
+        label: `${interval / 1000}s`,
+        type: "radio",
+        checked: settings.screenCaptureIntervalMs === interval,
+        click: () => setScreenCaptureInterval(interval)
+      }))
+    },
+    {
+      label: ocrCommand ? `Puddle OCR Backend: ${settings.screenOcrEnabled ? "On" : "Off"}` : "Puddle OCR Backend: nicht gefunden",
+      type: ocrCommand ? "checkbox" : "normal",
+      enabled: Boolean(settings.screenAwareness && ocrCommand),
+      checked: Boolean(settings.screenOcrEnabled),
+      click: (menuItem) => toggleScreenOcr(menuItem.checked)
     },
     { type: "separator" },
     {
@@ -142,6 +192,19 @@ function createTray() {
   tray.setToolTip("MitaDesktopPet");
   tray.setContextMenu(createContextMenu());
   tray.on("click", () => mainWindow?.show());
+}
+
+function updateMenus() {
+  tray?.setContextMenu(createContextMenu());
+}
+
+function emitSettings() {
+  mainWindow?.webContents.send("pet:settings", {
+    screenAwareness: Boolean(settings.screenAwareness),
+    gameTips: Boolean(settings.gameTips),
+    screenOcrEnabled: Boolean(settings.screenOcrEnabled),
+    screenCaptureIntervalMs: settings.screenCaptureIntervalMs
+  });
 }
 
 function createWindow() {
@@ -183,12 +246,14 @@ function createWindow() {
       spritesheetUrl: pathToFileUrl(path.join(assetsDir, manifest.spritesheetPath ?? "spritesheet.webp"))
     });
     scheduleRandomAction();
+    startScreenAwarenessIfEnabled();
   });
 
   mainWindow.on("moved", persistWindowPosition);
   mainWindow.on("closed", () => {
     mainWindow = null;
     clearTimeout(randomActionTimer);
+    stopScreenAwareness();
     stopMove();
   });
 }
@@ -201,7 +266,7 @@ function setMode(mode, persist) {
   if (persist) {
     settings.mode = mode;
     saveSettings();
-    tray?.setContextMenu(createContextMenu());
+    updateMenus();
   }
   mainWindow?.webContents.send("pet:mode", mode);
 }
@@ -213,7 +278,101 @@ function toggleStartWithWindows(enabled) {
     path: process.execPath
   });
   saveSettings();
-  tray?.setContextMenu(createContextMenu());
+  updateMenus();
+}
+
+function toggleScreenAwareness(enabled) {
+  settings.screenAwareness = enabled;
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  if (enabled) {
+    sendBubble("Screen awareness on. I will peek every few seconds.", "wave");
+    runScreenAwarenessOnce();
+    startScreenAwarenessIfEnabled();
+  } else {
+    stopScreenAwareness();
+    sendBubble("Screen awareness off.", "idle");
+  }
+}
+
+function toggleGameTips(enabled) {
+  settings.gameTips = enabled;
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  sendBubble(enabled ? "Game tips mode on." : "Game tips mode off.", enabled ? "excited" : "idle");
+}
+
+function toggleScreenOcr(enabled) {
+  settings.screenOcrEnabled = enabled;
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  sendBubble(enabled ? "Puddle OCR backend on." : "Puddle OCR backend off.", enabled ? "pray" : "idle");
+}
+
+function setScreenCaptureInterval(intervalMs) {
+  settings.screenCaptureIntervalMs = normalizeInterval(intervalMs);
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  startScreenAwarenessIfEnabled();
+}
+
+function startScreenAwarenessIfEnabled() {
+  stopScreenAwareness();
+  if (!settings.screenAwareness) {
+    return;
+  }
+  screenAwarenessTimer = setInterval(runScreenAwarenessOnce, settings.screenCaptureIntervalMs);
+}
+
+function stopScreenAwareness() {
+  if (screenAwarenessTimer) {
+    clearInterval(screenAwarenessTimer);
+    screenAwarenessTimer = null;
+  }
+  screenAwarenessBusy = false;
+}
+
+function sendBubble(message, mode) {
+  if (!message || !mainWindow) {
+    return;
+  }
+  mainWindow.webContents.send("pet:bubble", { message, mode });
+}
+
+async function runScreenAwarenessOnce() {
+  if (!settings.screenAwareness || screenAwarenessBusy || !mainWindow) {
+    return;
+  }
+  const now = Date.now();
+  if (now - lastScreenMessageAt < settings.screenMessageCooldownMs) {
+    return;
+  }
+
+  screenAwarenessBusy = true;
+  try {
+    const result = await analyzeCurrentScreen(settings);
+    if (!result?.message) {
+      return;
+    }
+    const key = `${result.category}:${result.message}`;
+    if (key === lastScreenMessageKey && now - lastScreenMessageAt < settings.screenMessageCooldownMs * 2) {
+      return;
+    }
+    lastScreenMessageAt = Date.now();
+    lastScreenMessageKey = key;
+    if (result.mode) {
+      temporaryMode(result.mode, 1400);
+    }
+    sendBubble(result.message, result.mode);
+  } catch {
+    // Screen awareness is intentionally quiet on capture/OCR failures.
+  } finally {
+    screenAwarenessBusy = false;
+  }
 }
 
 function persistWindowPosition() {
@@ -356,6 +515,8 @@ ipcMain.on("pet:drag-end", (_event, position) => {
 ipcMain.on("pet:context-menu", showContextMenu);
 ipcMain.on("pet:clicked", () => temporaryMode("excited", 900));
 ipcMain.on("pet:set-mode", (_event, mode) => setMode(mode, true));
+ipcMain.on("pet:toggle-screen-awareness", () => toggleScreenAwareness(!settings.screenAwareness));
+ipcMain.on("pet:toggle-game-tips", () => toggleGameTips(!settings.gameTips));
 ipcMain.handle("pet:get-state", () => ({
   settings,
   petManifestPath,

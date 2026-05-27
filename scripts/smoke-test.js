@@ -8,7 +8,9 @@ const requiredFiles = [
   "src/preload.js",
   "src/renderer.html",
   "src/renderer.js",
+  "src/screen-awareness.js",
   "src/styles.css",
+  "src/ocr/puddle_ocr_bridge.py",
   "assets/pet.json",
   "assets/spritesheet.webp"
 ];
@@ -39,7 +41,13 @@ for (const expected of [
   "frame: false",
   "alwaysOnTop: true",
   "setLoginItemSettings",
-  "pet:context-menu"
+  "pet:context-menu",
+  "Screen Awareness",
+  "Game Tips Mode",
+  "Puddle OCR Backend",
+  "screenCaptureIntervalMs",
+  "screenOcrEnabled",
+  "toggleScreenAwareness"
 ]) {
   if (!mainSource.includes(expected)) {
     throw new Error(`Main process is missing: ${expected}`);
@@ -71,11 +79,28 @@ const rendererHtml = fs.readFileSync(path.join(root, "src/renderer.html"), "utf8
 if (!rendererHtml.includes("pet-bubble")) {
   throw new Error("Renderer markup is missing the bubble element");
 }
+if (!rendererHtml.includes("screen-awareness-toggle") || !rendererHtml.includes("game-tips-toggle")) {
+  throw new Error("Renderer markup is missing awareness toggles");
+}
 if (rendererSource.includes("sleep") || rendererHtml.includes("sleep") || mainSource.includes("sleep")) {
   throw new Error("Sleep mode should not be exposed or referenced");
 }
 if (!rendererSource.includes("sad: { row: 6, frames: 6")) {
   throw new Error("Sad animation must use row 6 with 6 frames");
+}
+
+const awarenessSource = fs.readFileSync(path.join(root, "src/screen-awareness.js"), "utf8");
+for (const expected of [
+  "desktopCapturer",
+  "DEFAULT_INTERVAL_MS = 10000",
+  "DEFAULT_COOLDOWN_MS",
+  "analyzeCurrentScreen",
+  "getPuddleOcrCommand",
+  "fs.rm(tempPath"
+]) {
+  if (!awarenessSource.includes(expected)) {
+    throw new Error(`Screen awareness module is missing: ${expected}`);
+  }
 }
 
 console.log("Smoke test passed: project files, pet manifest, sprite asset, and core desktop-pet features are present.");

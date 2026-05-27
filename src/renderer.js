@@ -32,6 +32,8 @@ const bubble = document.getElementById("pet-bubble");
 const menu = document.getElementById("pet-menu");
 const nameEl = document.getElementById("pet-name");
 const descriptionEl = document.getElementById("pet-description");
+const screenAwarenessToggle = document.getElementById("screen-awareness-toggle");
+const gameTipsToggle = document.getElementById("game-tips-toggle");
 
 let animationFrameId = 0;
 let lastFrameAt = 0;
@@ -41,6 +43,10 @@ let currentMode = "idle";
 let drag = null;
 let clickSuppressUntil = 0;
 let bubbleTimer = 0;
+let currentSettings = {
+  screenAwareness: false,
+  gameTips: false
+};
 
 function normalizeMode(mode) {
   if (mode === "walk-left" || mode === "walk-right") {
@@ -134,14 +140,27 @@ function hideMenu() {
   menu.hidden = true;
 }
 
+function applySettings(settings) {
+  currentSettings = {
+    ...currentSettings,
+    ...settings
+  };
+  screenAwarenessToggle.textContent = `Screen Awareness: ${currentSettings.screenAwareness ? "On" : "Off"}`;
+  gameTipsToggle.textContent = `Game Tips: ${currentSettings.gameTips ? "On" : "Off"}`;
+  gameTipsToggle.disabled = !currentSettings.screenAwareness;
+}
+
 window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
   nameEl.textContent = manifest.displayName ?? "MitaPet";
   descriptionEl.textContent = manifest.description ?? "Desktop pet";
   sprite.style.backgroundImage = `url("${spritesheetUrl}")`;
   play(mode ?? "idle", { forceBubble: false });
+  window.mitaPet.getState().then(({ settings }) => applySettings(settings));
 });
 
 window.mitaPet.onMode((mode) => play(mode));
+window.mitaPet.onBubble(({ message, mode }) => showBubble(mode ?? currentMode, message));
+window.mitaPet.onSettings((settings) => applySettings(settings));
 
 hitbox.addEventListener("pointerdown", (event) => {
   if (event.button !== 0) {
@@ -202,6 +221,14 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
     window.mitaPet.setMode(mode);
     hideMenu();
   });
+});
+
+screenAwarenessToggle.addEventListener("click", () => {
+  window.mitaPet.toggleScreenAwareness();
+});
+
+gameTipsToggle.addEventListener("click", () => {
+  window.mitaPet.toggleGameTips();
 });
 
 document.addEventListener("keydown", (event) => {

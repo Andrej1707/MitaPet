@@ -144,7 +144,14 @@ body {
   gap: 6px;
 }
 
-.mode-grid button {
+.settings-grid {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mode-grid button,
+.settings-grid button {
   min-height: 28px;
   border: 1px solid rgb(255 255 255 / 12%);
   border-radius: 6px;
@@ -153,8 +160,14 @@ body {
   font-size: 12px;
 }
 
-.mode-grid button:hover {
+.mode-grid button:hover,
+.settings-grid button:hover {
   background: rgb(255 255 255 / 18%);
+}
+
+.settings-grid button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 @keyframes excited-bounce {
