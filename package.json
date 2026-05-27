@@ -1,6 +1,6 @@
 {
   "name": "mita-desktop-pet",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Standalone Windows desktop pet app for MitaPet.",
   "main": "src/main.js",
   "author": "PC",
@@ -21,9 +21,6 @@
       "src/**/*",
       "assets/**/*",
       "package.json"
-    ],
-    "asarUnpack": [
-      "src/ocr/**/*"
     ],
     "extraMetadata": {
       "main": "src/main.js"

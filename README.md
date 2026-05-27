@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-1.2.0-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v1.2.0/MitaDesktopPet-1.2.0-Setup.exe)
+[MitaDesktopPet-2.0.0-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.0/MitaDesktopPet-2.0.0-Setup.exe)
 
 ## Features
 
@@ -19,16 +19,45 @@ Download the latest Windows installer from the GitHub release:
 - Smooth requestAnimationFrame sprite animation
 - Random wandering, hopping, emotes, and short click reactions
 - Fading speech bubbles
-- Optional Screen Awareness mode with local screen heuristics
-- Optional Game Tips mode for HUD-like situations
-- Configurable screenshot interval, default 10 seconds
-- Optional local Puddle/PaddleOCR hook when available
-- Screen capture is off by default and screenshots are not stored permanently
 - Mouse dragging with saved position
 - Right-click menu with quit and Windows autostart toggle
 - Double-click mini pet menu
 - Optional tray icon
 - Windows installer prepared with electron-builder
+
+## OpenAI Vision Mode
+
+OpenAI Vision Mode is optional and disabled by default. MitaDesktopPet does not require OCR, local AI models, Python, Ollama, Gemma, PaddleOCR, or any model downloads.
+
+You can provide your own OpenAI API key on first launch or later in Vision Settings. If no API key is saved, the pet still works normally without vision features.
+
+Defaults:
+
+- Model: `gpt-5.4-nano`
+- Vision Mode: off
+- Auto Vision: off
+- Auto scan interval: `60` seconds
+- Cooldown: `90` seconds
+- Daily request cap: `500`
+- Weekly request cap: `2500`
+- Image detail: `low`
+- Max image width: `1280`
+- JPEG quality: `75`
+
+Screenshots are only sent when Vision Mode is enabled and you use Manual Ask or enable Auto Vision. Screenshots are downscaled to JPEG and are not stored permanently by MitaDesktopPet.
+
+Do not enable Auto Vision when private content is visible. You can use Manual Ask instead of Auto Vision.
+
+Vision Settings lets you:
+
+- Enable or disable OpenAI Vision Mode
+- Save or clear your API key
+- Change the model
+- Change image detail, width, and JPEG quality
+- Enable or disable Auto Vision
+- Change scan interval and cooldown
+- Set daily and weekly request caps
+- View and reset usage counters
 
 ## Run Locally
 
@@ -53,7 +82,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-1.2.0-Setup.exe
+dist/MitaDesktopPet-2.0.0-Setup.exe
 ```
 
 ## App Assets

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mita Vision Settings</title>
+    <link rel="stylesheet" href="./vision-settings.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 id="title">OpenAI Vision Mode</h1>
+        <p id="subtitle">Optional, off by default, and controlled by you.</p>
+      </header>
+
+      <section class="notice">
+        <strong>Privacy</strong>
+        <p>OpenAI Vision Mode sends screenshots of your active window/screen to OpenAI for analysis. MitaDesktopPet does not store screenshots permanently. Vision Mode is optional and disabled by default.</p>
+        <p>Do not enable Auto Vision when private content is visible. You can use Manual Ask instead of Auto Vision.</p>
+      </section>
+
+      <section class="grid">
+        <label class="check"><input id="visionEnabled" type="checkbox" /> Enable OpenAI Vision Mode</label>
+        <label class="check"><input id="autoVisionEnabled" type="checkbox" /> Enable Auto Vision</label>
+
+        <label>
+          API key
+          <input id="openaiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+          <small id="maskedKey">No key saved</small>
+        </label>
+
+        <div class="row">
+          <button id="saveKey" type="button">Save</button>
+          <button id="clearKey" type="button">Clear API Key</button>
+        </div>
+
+        <label>
+          Model
+          <input id="openaiModel" list="models" />
+          <datalist id="models">
+            <option value="gpt-5.4-nano"></option>
+            <option value="gpt-5.4-mini"></option>
+            <option value="gpt-5.4"></option>
+            <option value="gpt-5.5"></option>
+          </datalist>
+        </label>
+
+        <label>
+          Image detail
+          <select id="imageDetail">
+            <option value="low">low</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+
+        <label>
+          Max image width
+          <input id="maxImageWidth" type="number" min="320" max="1600" step="80" />
+        </label>
+
+        <label>
+          JPEG quality
+          <input id="jpegQuality" type="range" min="35" max="95" />
+          <small id="jpegQualityText"></small>
+        </label>
+
+        <label>
+          Auto interval seconds
+          <input id="autoScanIntervalSeconds" type="number" min="15" max="3600" />
+        </label>
+
+        <label>
+          Cooldown seconds
+          <input id="visionCooldownSeconds" type="number" min="5" max="3600" />
+        </label>
+
+        <label>
+          Daily request cap
+          <input id="dailyRequestCap" type="number" min="1" max="10000" />
+        </label>
+
+        <label>
+          Weekly request cap
+          <input id="weeklyRequestCap" type="number" min="1" max="50000" />
+        </label>
+      </section>
+
+      <section class="usage">
+        <span>Today: <strong id="dailyUsage">0</strong></span>
+        <span>This week: <strong id="weeklyUsage">0</strong></span>
+        <button id="resetUsage" type="button">Reset Usage</button>
+      </section>
+
+      <footer>
+        <button id="saveAll" type="button">Save and Enable</button>
+        <button id="skip" type="button">Skip</button>
+      </footer>
+    </main>
+    <script src="./vision-settings.js"></script>
+  </body>
+</html>

@@ -32,8 +32,8 @@ const bubble = document.getElementById("pet-bubble");
 const menu = document.getElementById("pet-menu");
 const nameEl = document.getElementById("pet-name");
 const descriptionEl = document.getElementById("pet-description");
-const screenAwarenessToggle = document.getElementById("screen-awareness-toggle");
-const gameTipsToggle = document.getElementById("game-tips-toggle");
+const askVisionButton = document.getElementById("ask-vision");
+const visionSettingsButton = document.getElementById("vision-settings");
 
 let animationFrameId = 0;
 let lastFrameAt = 0;
@@ -44,8 +44,8 @@ let drag = null;
 let clickSuppressUntil = 0;
 let bubbleTimer = 0;
 let currentSettings = {
-  screenAwareness: false,
-  gameTips: false
+  visionEnabled: false,
+  hasApiKey: false
 };
 
 function normalizeMode(mode) {
@@ -113,7 +113,7 @@ function pick(values) {
   return values[Math.floor(Math.random() * values.length)];
 }
 
-function showBubble(mode, message) {
+function showBubble(mode, message, durationMs = 2800) {
   const messages = BUBBLES[mode] ?? BUBBLES.idle;
   bubble.textContent = message ?? pick(messages);
   bubble.hidden = false;
@@ -124,7 +124,7 @@ function showBubble(mode, message) {
     bubbleTimer = window.setTimeout(() => {
       bubble.hidden = true;
     }, 220);
-  }, 2800);
+  }, durationMs);
 }
 
 function showClickBubble() {
@@ -145,9 +145,7 @@ function applySettings(settings) {
     ...currentSettings,
     ...settings
   };
-  screenAwarenessToggle.textContent = `Screen Awareness: ${currentSettings.screenAwareness ? "On" : "Off"}`;
-  gameTipsToggle.textContent = `Game Tips: ${currentSettings.gameTips ? "On" : "Off"}`;
-  gameTipsToggle.disabled = !currentSettings.screenAwareness;
+  askVisionButton.disabled = false;
 }
 
 window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
@@ -159,7 +157,7 @@ window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
 });
 
 window.mitaPet.onMode((mode) => play(mode));
-window.mitaPet.onBubble(({ message, mode }) => showBubble(mode ?? currentMode, message));
+window.mitaPet.onBubble(({ message, mode, durationMs }) => showBubble(mode ?? currentMode, message, durationMs));
 window.mitaPet.onSettings((settings) => applySettings(settings));
 
 hitbox.addEventListener("pointerdown", (event) => {
@@ -223,12 +221,12 @@ document.querySelectorAll("[data-mode]").forEach((button) => {
   });
 });
 
-screenAwarenessToggle.addEventListener("click", () => {
-  window.mitaPet.toggleScreenAwareness();
+askVisionButton.addEventListener("click", () => {
+  window.mitaPet.askVision();
 });
 
-gameTipsToggle.addEventListener("click", () => {
-  window.mitaPet.toggleGameTips();
+visionSettingsButton.addEventListener("click", () => {
+  window.mitaPet.openVisionSettings();
 });
 
 document.addEventListener("keydown", (event) => {

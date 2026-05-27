@@ -10,7 +10,15 @@ contextBridge.exposeInMainWorld("mitaPet", {
   openContextMenu: () => ipcRenderer.send("pet:context-menu"),
   clickReaction: () => ipcRenderer.send("pet:clicked"),
   setMode: (mode) => ipcRenderer.send("pet:set-mode", mode),
-  toggleScreenAwareness: () => ipcRenderer.send("pet:toggle-screen-awareness"),
-  toggleGameTips: () => ipcRenderer.send("pet:toggle-game-tips"),
+  openVisionSettings: () => ipcRenderer.send("pet:open-vision-settings"),
+  askVision: () => ipcRenderer.send("pet:ask-vision"),
   getState: () => ipcRenderer.invoke("pet:get-state")
+});
+
+contextBridge.exposeInMainWorld("mitaVision", {
+  onSettings: (callback) => ipcRenderer.on("vision:settings", (_event, payload) => callback(payload)),
+  save: (settings) => ipcRenderer.send("vision:save", settings),
+  skipFirstRun: () => ipcRenderer.send("vision:skip-first-run"),
+  clearApiKey: () => ipcRenderer.send("vision:clear-api-key"),
+  resetUsage: () => ipcRenderer.send("vision:reset-usage")
 });
