@@ -8,23 +8,21 @@ const ANIMS = {
   wave: { row: 3, frames: 4, fps: 6 },
   excited: { row: 4, frames: 5, fps: 8 },
   jumping: { row: 4, frames: 5, fps: 8 },
-  sleep: { row: 5, frames: 8, fps: 5 },
   sad: { row: 6, frames: 6, fps: 5 },
   pray: { row: 7, frames: 6, fps: 5 },
   shy: { row: 8, frames: 6, fps: 5 }
 };
 
 const BUBBLES = {
-  idle: ["(^・ω・^) Hiii~", "♪~"],
+  idle: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"],
   run: ["Weeee~!", "Catch me!", "Hya!"],
   walk: ["Weeee~!", "Catch me!", "Hya!"],
-  excited: ["KYAAA~!", "YAY!! ✨", "SUGOI!!"],
-  jumping: ["KYAAA~!", "YAY!! ✨", "SUGOI!!"],
-  sleep: ["💤 Zzzzz...", "むにゃ...", "(＿ ＿*)"],
-  sad: ["(´；ω；`)", "sniff...", "uwaaaa..."],
-  shy: [">///<", "h-huh...?", "あの..."],
-  pray: ["🙏", "Please...", "お願い..."],
-  wave: ["(^・ω・^) Hiii~", "♪~"]
+  excited: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
+  jumping: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
+  sad: ["(\u00b4\uff1b\u03c9\uff1b`)", "sniff...", "uwaaaa..."],
+  shy: [">///<", "h-huh...?", "\u3042\u306e..."],
+  pray: ["\ud83d\ude4f", "Please...", "\u304a\u9858\u3044..."],
+  wave: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"]
 };
 
 const shell = document.getElementById("pet-shell");
@@ -63,7 +61,6 @@ function setFrame(row, frame) {
 }
 
 function setModeClasses(mode, normalizedMode) {
-  shell.classList.toggle("sleep", normalizedMode === "sleep");
   shell.classList.toggle("excited", normalizedMode === "excited" || normalizedMode === "jumping");
   shell.classList.toggle("facing-left", isLeftFacing(mode));
 }
@@ -125,7 +122,7 @@ function showBubble(mode, message) {
 }
 
 function showClickBubble() {
-  const reactionMessages = ["Hi!", "♪~", "KYAAA~!", "h-huh...?"];
+  const reactionMessages = ["Hi!", "\u266a~", "KYAAA~!", "h-huh...?"];
   showBubble(currentMode, pick(reactionMessages));
 }
 

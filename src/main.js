@@ -13,7 +13,6 @@ const MENU_MODES = [
   ["walk", "Walk"],
   ["wave", "Wave"],
   ["excited", "Excited"],
-  ["sleep", "Sleep"],
   ["sad", "Sad"],
   ["pray", "Pray"],
   ["shy", "Shy"]
@@ -50,6 +49,9 @@ function loadSettings() {
     startWithWindows: false,
     ...readJson(settingsPath(), {})
   };
+  if (!MENU_MODES.some(([mode]) => mode === settings.mode)) {
+    settings.mode = "idle";
+  }
 }
 
 function saveSettings() {
@@ -240,7 +242,6 @@ function scheduleRandomAction() {
         ["idle", 2200],
         ["wave", 2600],
         ["excited", 2300],
-        ["sleep", 3600],
         ["sad", 3000],
         ["pray", 3000],
         ["shy", 3000]

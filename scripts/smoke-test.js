@@ -57,7 +57,6 @@ for (const expected of [
   "walk",
   "wave",
   "excited",
-  "sleep",
   "sad",
   "pray",
   "shy",
@@ -71,6 +70,12 @@ for (const expected of [
 const rendererHtml = fs.readFileSync(path.join(root, "src/renderer.html"), "utf8");
 if (!rendererHtml.includes("pet-bubble")) {
   throw new Error("Renderer markup is missing the bubble element");
+}
+if (rendererSource.includes("sleep") || rendererHtml.includes("sleep") || mainSource.includes("sleep")) {
+  throw new Error("Sleep mode should not be exposed or referenced");
+}
+if (!rendererSource.includes("sad: { row: 6, frames: 6")) {
+  throw new Error("Sad animation must use row 6 with 6 frames");
 }
 
 console.log("Smoke test passed: project files, pet manifest, sprite asset, and core desktop-pet features are present.");

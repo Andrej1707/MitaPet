@@ -15,7 +15,7 @@ Download the latest Windows installer from the GitHub release:
 - Transparent frameless always-on-top window
 - Starts in the bottom-right corner
 - Loads `assets/pet.json` and animates `assets/spritesheet.webp`
-- Idle, walk, wave, excited, sleep, sad, pray, and shy modes
+- Idle, walk, wave, excited, sad, pray, and shy modes
 - Smooth requestAnimationFrame sprite animation
 - Random wandering, hopping, emotes, and short click reactions
 - Fading speech bubbles
