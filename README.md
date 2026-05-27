@@ -2,6 +2,8 @@
 
 MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show an animated transparent companion on the desktop.
 
+![MitaDesktopPet on the desktop](docs/mita-desktop-preview.png)
+
 ## Download
 
 Download the latest Windows installer from the GitHub release:
