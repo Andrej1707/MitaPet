@@ -94,11 +94,16 @@ if (
   !rendererSource.includes("NORMAL_BUBBLE_PAUSE_MS = 5000") ||
   !rendererSource.includes("nextNormalBubbleAllowedAt") ||
   rendererSource.includes("bubbleQueue") ||
-  !rendererSource.includes("options.priority === true") ||
-  !rendererSource.includes("Baka") ||
-  !rendererSource.includes("Andrej")
+  !rendererSource.includes("options.priority === true")
 ) {
   throw new Error("Normal bubbles should be cooldown-limited while priority vision bubbles can interrupt");
+}
+if (
+  !rendererSource.includes("Local animation bubbles stay tied to the current sprite animation") ||
+  rendererSource.includes("Baka... ich bin kein Button") ||
+  rendererSource.includes("Andrej 😤")
+) {
+  throw new Error("Local animation bubbles should stay animation-specific; strong personality belongs to AI reactions");
 }
 if (!rendererHtml.includes("ask-vision") || !rendererHtml.includes("vision-settings")) {
   throw new Error("Renderer markup is missing vision controls");
