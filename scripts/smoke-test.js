@@ -158,6 +158,9 @@ for (const expected of [
   "https://api.openai.com/v1/audio/speech",
   "gpt-4o-mini-transcribe",
   "gpt-4o-mini-tts",
+  "very tsundere",
+  "Sound like the screenshot reactions",
+  "German first",
   "parseVoiceReply"
 ]) {
   if (!voiceSource.includes(expected)) {
@@ -358,11 +361,11 @@ if (voiceRequested.voiceUsage.dailyVoiceRequests !== 1 || voiceRequested.voiceUs
   throw new Error("Voice usage recording failed");
 }
 const voiceParsed = parseVoiceReply('{"reply":"Hi!","emotion":"excited","should_speak":true}');
-if (voiceParsed.reply !== "Hi!" || voiceParsed.emotion !== "excited" || !voiceParsed.should_speak) {
+if (!voiceParsed.reply.includes("Hi!") || !voiceParsed.reply.includes("Baka") || voiceParsed.emotion !== "excited" || !voiceParsed.should_speak) {
   throw new Error("Voice JSON parsing failed");
 }
 const voiceFallback = parseVoiceReply("plain voice reply");
-if (!voiceFallback.should_speak || voiceFallback.reply !== "plain voice reply") {
+if (!voiceFallback.should_speak || !voiceFallback.reply.includes("plain voice reply") || !voiceFallback.reply.includes("Baka")) {
   throw new Error("Voice invalid JSON fallback failed");
 }
 

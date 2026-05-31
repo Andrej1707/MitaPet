@@ -23,6 +23,7 @@ const DEFAULT_VOICE_SETTINGS = {
 };
 
 const VOICE_EMOTIONS = ["idle", "happy", "shy", "excited", "sleep", "sad", "pray"];
+const DEFAULT_VOICE_FALLBACK = "H-Ha?! Ich hab kurz den Faden verloren... nicht, dass mich das nervoes macht oder so 😤💕";
 
 function clampNumber(value, fallback, min, max) {
   const parsed = Number(value);
@@ -130,7 +131,7 @@ function parseVoiceReply(outputText) {
   const raw = String(outputText || "").trim();
   if (!raw) {
     return {
-      reply: "Ich hab kurz den Faden verloren...",
+      reply: DEFAULT_VOICE_FALLBACK,
       emotion: "shy",
       should_speak: true
     };
@@ -150,7 +151,7 @@ function parseVoiceReply(outputText) {
   }
 
   return {
-    reply: raw.slice(0, 320),
+    reply: withVoiceStyle(raw),
     emotion: "idle",
     should_speak: true
   };
@@ -158,10 +159,28 @@ function parseVoiceReply(outputText) {
 
 function normalizeVoiceReply(value) {
   return {
-    reply: String(value.reply || "").slice(0, 320),
+    reply: withVoiceStyle(value.reply || DEFAULT_VOICE_FALLBACK),
     emotion: VOICE_EMOTIONS.includes(value.emotion) ? value.emotion : "idle",
     should_speak: value.should_speak !== false
   };
+}
+
+function hasExpressiveMarker(text) {
+  return /[\u{1F300}-\u{1FAFF}\u2728\u266a~]|Baka|Tsk|H-Ha|Nyaa|😤|💕|💢|😭|😳/u.test(String(text || ""));
+}
+
+function withVoiceStyle(text) {
+  const value = String(text || "").trim();
+  if (!value) {
+    return DEFAULT_VOICE_FALLBACK;
+  }
+  if (hasExpressiveMarker(value)) {
+    return value.slice(0, 320);
+  }
+  const prefix = "Tsk... ";
+  const suffix = " Baka 😤💕";
+  const available = 320 - prefix.length - suffix.length;
+  return `${prefix}${value.slice(0, Math.max(0, available)).trimEnd()}${suffix}`;
 }
 
 module.exports = {
