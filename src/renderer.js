@@ -47,6 +47,9 @@ let currentSettings = {
   visionEnabled: false,
   hasApiKey: false
 };
+let bubbleVisible = false;
+let bubbleQueue = [];
+let bubbleFadeTimer = 0;
 
 function normalizeMode(mode) {
   if (mode === "walk-left" || mode === "walk-right") {
@@ -113,23 +116,56 @@ function pick(values) {
   return values[Math.floor(Math.random() * values.length)];
 }
 
-function showBubble(mode, message, durationMs = 2800) {
+function notifyBubbleVisible(visible) {
+  bubbleVisible = visible;
+  window.mitaPet.setBubbleVisible(visible);
+}
+
+function clearBubble() {
+  window.clearTimeout(bubbleTimer);
+  window.clearTimeout(bubbleFadeTimer);
+  bubble.classList.remove("visible");
+  bubble.hidden = true;
+  bubbleQueue = [];
+  notifyBubbleVisible(false);
+}
+
+function finishBubble(fadeMs = 500) {
+  bubble.classList.remove("visible");
+  bubbleFadeTimer = window.setTimeout(() => {
+    bubble.hidden = true;
+    notifyBubbleVisible(false);
+    const next = bubbleQueue.shift();
+    if (next) {
+      showBubble(next.mode, next.message, next.durationMs, { manual: false });
+    }
+  }, fadeMs);
+}
+
+function showBubble(mode, message, durationMs = 5000, options = {}) {
+  const isManual = options.manual === true;
+  if (bubbleVisible && !isManual) {
+    bubbleQueue.push({ mode, message, durationMs });
+    return;
+  }
+  if (bubbleVisible && isManual) {
+    clearBubble();
+  }
   const messages = BUBBLES[mode] ?? BUBBLES.idle;
   bubble.textContent = message ?? pick(messages);
   bubble.hidden = false;
   window.clearTimeout(bubbleTimer);
+  window.clearTimeout(bubbleFadeTimer);
+  notifyBubbleVisible(true);
   window.requestAnimationFrame(() => bubble.classList.add("visible"));
   bubbleTimer = window.setTimeout(() => {
-    bubble.classList.remove("visible");
-    bubbleTimer = window.setTimeout(() => {
-      bubble.hidden = true;
-    }, 220);
+    finishBubble(500);
   }, durationMs);
 }
 
 function showClickBubble() {
   const reactionMessages = ["Hi!", "\u266a~", "KYAAA~!", "h-huh...?"];
-  showBubble(currentMode, pick(reactionMessages));
+  showBubble(currentMode, pick(reactionMessages), 5000, { manual: true });
 }
 
 function showMenu() {
@@ -157,7 +193,8 @@ window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
 });
 
 window.mitaPet.onMode((mode) => play(mode));
-window.mitaPet.onBubble(({ message, mode, durationMs }) => showBubble(mode ?? currentMode, message, durationMs));
+window.mitaPet.onBubble(({ message, mode, durationMs, manual }) => showBubble(mode ?? currentMode, message, durationMs, { manual }));
+window.mitaPet.onClearBubble(() => clearBubble());
 window.mitaPet.onSettings((settings) => applySettings(settings));
 
 hitbox.addEventListener("pointerdown", (event) => {

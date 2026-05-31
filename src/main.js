@@ -36,6 +36,8 @@ let moveTimer = null;
 let currentMove = null;
 let autoVisionTimer = null;
 let visionBusy = false;
+let bubbleVisible = false;
+let cleanCaptureState = null;
 
 const assetsDir = path.join(__dirname, "..", "assets");
 const petManifestPath = path.join(assetsDir, "pet.json");
@@ -132,6 +134,13 @@ function getVisionSettingsPayload(firstRun = false) {
       jpegQuality: settings.jpegQuality,
       imageDetail: settings.imageDetail,
       usage: settings.usage,
+      captureMode: settings.captureMode,
+      hidePetDuringCapture: settings.hidePetDuringCapture,
+      hideBubblesDuringCapture: settings.hideBubblesDuringCapture,
+      skipAutoScanWhenBubbleVisible: settings.skipAutoScanWhenBubbleVisible,
+      bubbleDurationMs: settings.bubbleDurationMs,
+      bubbleFadeMs: settings.bubbleFadeMs,
+      captureDelayMs: settings.captureDelayMs,
       hasApiKey: Boolean(apiKey),
       maskedApiKey: maskApiKey(apiKey)
     }
@@ -467,7 +476,62 @@ function sendBubble(message, mode) {
   if (!message || !mainWindow) {
     return;
   }
-  mainWindow.webContents.send("pet:bubble", { message, mode, durationMs: 4000 });
+  mainWindow.webContents.send("pet:bubble", {
+    message,
+    mode,
+    durationMs: settings.bubbleDurationMs,
+    manual: false
+  });
+}
+
+function sendManualBubble(message, mode) {
+  if (!message || !mainWindow) {
+    return;
+  }
+  mainWindow.webContents.send("pet:bubble", {
+    message,
+    mode,
+    durationMs: settings.bubbleDurationMs,
+    manual: true
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function beginCleanCapture() {
+  cleanCaptureState = {
+    wasPetVisible: Boolean(mainWindow?.isVisible()),
+    wasSettingsVisible: Boolean(settingsWindow?.isVisible())
+  };
+
+  if (settings.hideBubblesDuringCapture) {
+    mainWindow?.webContents.send("pet:clear-bubble");
+    bubbleVisible = false;
+  }
+  if (settings.hidePetDuringCapture) {
+    mainWindow?.hide();
+  }
+  if (settingsWindow && cleanCaptureState.wasSettingsVisible) {
+    settingsWindow.hide();
+  }
+
+  await delay(settings.captureDelayMs);
+}
+
+async function endCleanCapture() {
+  if (!cleanCaptureState) {
+    return;
+  }
+  const { wasPetVisible, wasSettingsVisible } = cleanCaptureState;
+  cleanCaptureState = null;
+  if (settings.hidePetDuringCapture && wasPetVisible) {
+    mainWindow?.showInactive();
+  }
+  if (settingsWindow && wasSettingsVisible) {
+    settingsWindow.show();
+  }
 }
 
 async function runVisionRequest({ manual }) {
@@ -475,6 +539,9 @@ async function runVisionRequest({ manual }) {
     if (manual) {
       sendBubble("Vision is already thinking.", "pray");
     }
+    return;
+  }
+  if (!manual && settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
     return;
   }
 
@@ -491,7 +558,8 @@ async function runVisionRequest({ manual }) {
         "weekly-cap": "Vision budget reached for this week.",
         cooldown: "Give me a tiny moment."
       };
-      sendBubble(messages[check.reason] || "Vision is not ready.", check.reason.includes("cap") ? "sad" : "wave");
+      const sender = manual ? sendManualBubble : sendBubble;
+      sender(messages[check.reason] || "Vision is not ready.", check.reason.includes("cap") ? "sad" : "wave");
       if (check.reason === "missing-api-key") {
         openVisionSettings(false);
       }
@@ -506,11 +574,16 @@ async function runVisionRequest({ manual }) {
     emitSettings();
     const { result } = await askOpenAIVision({
       apiKey: getApiKey(),
-      settings
+      settings: {
+        ...settings,
+        beforeCapture: beginCleanCapture,
+        afterCapture: endCleanCapture
+      }
     });
     if (result.should_speak && result.tip) {
       temporaryMode(result.mode === "game" ? "excited" : result.mode === "terminal" || result.mode === "coding" ? "pray" : "wave", 1600);
-      sendBubble(result.tip, "wave");
+      const sender = manual ? sendManualBubble : sendBubble;
+      sender(result.tip, "wave");
     }
   } catch (error) {
     const message = error.code === "capture-failed"
@@ -518,7 +591,8 @@ async function runVisionRequest({ manual }) {
       : error.statusCode === 400
         ? "OpenAI model setting seems invalid."
         : "Vision request failed.";
-    sendBubble(message, "sad");
+    const sender = manual ? sendManualBubble : sendBubble;
+    sender(message, "sad");
   } finally {
     visionBusy = false;
   }
@@ -664,6 +738,9 @@ ipcMain.on("pet:drag-end", (_event, position) => {
 ipcMain.on("pet:context-menu", showContextMenu);
 ipcMain.on("pet:clicked", () => temporaryMode("excited", 900));
 ipcMain.on("pet:set-mode", (_event, mode) => setMode(mode, true));
+ipcMain.on("pet:bubble-visible", (_event, visible) => {
+  bubbleVisible = Boolean(visible);
+});
 ipcMain.on("pet:open-vision-settings", () => openVisionSettings(false));
 ipcMain.on("pet:ask-vision", () => runVisionRequest({ manual: true }));
 ipcMain.on("vision:save", (event, payload) => {

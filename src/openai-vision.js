@@ -86,18 +86,16 @@ async function captureForVision(metadata, settings) {
   const maxWidth = Number(settings.maxImageWidth || 1280);
   const thumbnailSize = { width: maxWidth, height: Math.round(maxWidth * 0.625) };
   const sources = await desktopCapturer.getSources({
-    types: ["window", "screen"],
+    types: ["screen"],
     thumbnailSize,
     fetchWindowIcons: false
   });
 
-  const activeTitle = String(metadata.windowTitle || "").trim().toLowerCase();
-  const activeWindow = activeTitle
-    ? sources.find((source) => source.name.toLowerCase().includes(activeTitle) && !source.thumbnail.isEmpty())
-    : null;
-  const primaryScreen = sources.find((source) => source.id.startsWith("screen:") && !source.thumbnail.isEmpty());
+  const primaryDisplayId = String(screen.getPrimaryDisplay().id);
+  const primaryScreen = sources.find((source) => source.display_id === primaryDisplayId && !source.thumbnail.isEmpty())
+    ?? sources.find((source) => source.id.startsWith("screen:") && !source.thumbnail.isEmpty());
   const fallback = sources.find((source) => !source.thumbnail.isEmpty());
-  const source = activeWindow ?? primaryScreen ?? fallback;
+  const source = primaryScreen ?? fallback;
 
   if (!source || source.thumbnail.isEmpty()) {
     return null;
@@ -174,7 +172,17 @@ function extractOutputText(response) {
 
 async function askOpenAIVision({ apiKey, settings }) {
   const metadata = await getActiveWindowMetadata();
-  const capture = await captureForVision(metadata, settings);
+  let capture = null;
+  if (typeof settings.beforeCapture === "function") {
+    await settings.beforeCapture();
+  }
+  try {
+    capture = await captureForVision(metadata, settings);
+  } finally {
+    if (typeof settings.afterCapture === "function") {
+      await settings.afterCapture();
+    }
+  }
   if (!capture) {
     const error = new Error("capture-failed");
     error.code = "capture-failed";

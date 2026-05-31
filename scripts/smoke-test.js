@@ -4,6 +4,7 @@ const path = require("path");
 const root = path.join(__dirname, "..");
 const requiredFiles = [
   "package.json",
+  "scripts/capture-clean-smoke.js",
   "src/main.js",
   "src/preload.js",
   "src/renderer.html",
@@ -99,10 +100,19 @@ for (const expected of [
   "input_image",
   "json_schema",
   "getActiveWindowMetadata",
-  "captureForVision"
+  "captureForVision",
+  "types: [\"screen\"]",
+  "primaryDisplayId"
 ]) {
   if (!visionSource.includes(expected)) {
     throw new Error(`OpenAI vision module is missing: ${expected}`);
+  }
+}
+
+const captureSmokeSource = fs.readFileSync(path.join(root, "scripts/capture-clean-smoke.js"), "utf8");
+for (const expected of ["types: [\"screen\"]", "win.hide()", "await delay(200)", "hiddenRedRatio"]) {
+  if (!captureSmokeSource.includes(expected)) {
+    throw new Error(`Capture clean smoke test is missing: ${expected}`);
   }
 }
 
@@ -128,6 +138,17 @@ const {
 const normalized = normalizeVisionSettings({});
 if (normalized.openaiModel !== "gpt-5.4-nano" || normalized.visionEnabled !== false) {
   throw new Error("Vision defaults are incorrect");
+}
+if (
+  normalized.captureMode !== "primaryScreen" ||
+  normalized.hidePetDuringCapture !== true ||
+  normalized.hideBubblesDuringCapture !== true ||
+  normalized.skipAutoScanWhenBubbleVisible !== true ||
+  normalized.bubbleDurationMs !== 5000 ||
+  normalized.bubbleFadeMs !== 500 ||
+  normalized.captureDelayMs !== 200
+) {
+  throw new Error("Clean capture defaults are incorrect");
 }
 if (maskApiKey("sk-test1234abcd") !== "sk-...abcd") {
   throw new Error("API key masking is incorrect");

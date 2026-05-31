@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.0-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.0/MitaDesktopPet-2.0.0-Setup.exe)
+[MitaDesktopPet-2.0.1-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.1/MitaDesktopPet-2.0.1-Setup.exe)
 
 ## Features
 
@@ -43,8 +43,11 @@ Defaults:
 - Image detail: `low`
 - Max image width: `1280`
 - JPEG quality: `75`
+- Capture mode: primary screen
+- Mita hides herself before screenshots so she does not analyze her own overlay
+- Speech bubbles are locked to one at a time and Auto Vision skips while Mita is speaking
 
-Screenshots are only sent when Vision Mode is enabled and you use Manual Ask or enable Auto Vision. Screenshots are downscaled to JPEG and are not stored permanently by MitaDesktopPet.
+Screenshots are only sent when Vision Mode is enabled and you use Manual Ask or enable Auto Vision. Screenshots are captured from the primary screen, downscaled to JPEG, and are not stored permanently by MitaDesktopPet.
 
 Do not enable Auto Vision when private content is visible. You can use Manual Ask instead of Auto Vision.
 
@@ -82,7 +85,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.0-Setup.exe
+dist/MitaDesktopPet-2.0.1-Setup.exe
 ```
 
 ## App Assets

@@ -11,6 +11,13 @@ const DEFAULT_VISION_SETTINGS = {
   maxImageWidth: 1280,
   jpegQuality: 75,
   imageDetail: "low",
+  captureMode: "primaryScreen",
+  hidePetDuringCapture: true,
+  hideBubblesDuringCapture: true,
+  skipAutoScanWhenBubbleVisible: true,
+  bubbleDurationMs: 5000,
+  bubbleFadeMs: 500,
+  captureDelayMs: 200,
   visionSetupSeen: false,
   usage: {
     dailyCount: 0,
@@ -72,6 +79,13 @@ function normalizeVisionSettings(input = {}) {
   merged.maxImageWidth = clampNumber(merged.maxImageWidth, 1280, 320, 1600);
   merged.jpegQuality = clampNumber(merged.jpegQuality, 75, 35, 95);
   merged.imageDetail = ["low", "high", "auto"].includes(merged.imageDetail) ? merged.imageDetail : "low";
+  merged.captureMode = ["primaryScreen", "fullDesktop", "activeWindow"].includes(merged.captureMode) ? merged.captureMode : "primaryScreen";
+  merged.hidePetDuringCapture = merged.hidePetDuringCapture !== false;
+  merged.hideBubblesDuringCapture = merged.hideBubblesDuringCapture !== false;
+  merged.skipAutoScanWhenBubbleVisible = merged.skipAutoScanWhenBubbleVisible !== false;
+  merged.bubbleDurationMs = clampNumber(merged.bubbleDurationMs, 5000, 1200, 20000);
+  merged.bubbleFadeMs = clampNumber(merged.bubbleFadeMs, 500, 100, 2000);
+  merged.captureDelayMs = clampNumber(merged.captureDelayMs, 200, 0, 1500);
 
   return merged;
 }
