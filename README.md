@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.6-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.6/MitaDesktopPet-2.0.6-Setup.exe)
+[MitaDesktopPet-2.0.7-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.7/MitaDesktopPet-2.0.7-Setup.exe)
 
 ## Features
 
@@ -21,6 +21,7 @@ Download the latest Windows installer from the GitHub release:
 - Fading speech bubbles that size dynamically to the text
 - Larger Vision bubbles with extra transparent window space so screenshot text has room
 - Normal animation bubbles only appear at animation start and have a quiet pause before the next normal bubble
+- Stronger cute, bubbly, tsundere Mita reactions with emoji-heavy Vision responses
 - Mouse dragging with saved position
 - Right-click menu with quit and Windows autostart toggle
 - Double-click mini pet menu
@@ -90,7 +91,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.6-Setup.exe
+dist/MitaDesktopPet-2.0.7-Setup.exe
 ```
 
 ## App Assets
