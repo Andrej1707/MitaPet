@@ -37,6 +37,7 @@ let currentMove = null;
 let autoVisionTimer = null;
 let autoVisionIntervalSeconds = null;
 let nextAutoVisionAt = null;
+let lastAutoVisionStatus = "off";
 let visionBusy = false;
 let bubbleVisible = false;
 let cleanCaptureState = null;
@@ -143,9 +144,10 @@ function getVisionSettingsPayload(firstRun = false) {
       bubbleDurationMs: settings.bubbleDurationMs,
       bubbleFadeMs: settings.bubbleFadeMs,
       captureDelayMs: settings.captureDelayMs,
-      autoVisionActive: Boolean(autoVisionTimer),
+      autoVisionActive: Boolean(autoVisionTimer || (settings.autoVisionEnabled && lastAutoVisionStatus !== "off")),
       activeAutoScanIntervalSeconds: autoVisionIntervalSeconds,
       nextAutoVisionAt,
+      lastAutoVisionStatus,
       hasApiKey: Boolean(apiKey),
       maskedApiKey: maskApiKey(apiKey)
     }
@@ -465,25 +467,70 @@ function skipVisionSetup() {
 function startAutoVisionIfEnabled() {
   stopAutoVision();
   if (!settings.visionEnabled || !settings.autoVisionEnabled || !hasApiKey()) {
+    lastAutoVisionStatus = "off";
     return;
   }
   const intervalSeconds = settings.autoScanIntervalSeconds;
   const intervalMs = intervalSeconds * 1000;
   autoVisionIntervalSeconds = intervalSeconds;
-  nextAutoVisionAt = Date.now() + intervalMs;
-  autoVisionTimer = setInterval(() => {
-    nextAutoVisionAt = Date.now() + intervalMs;
-    runVisionRequest({ manual: false });
-  }, intervalMs);
+  lastAutoVisionStatus = `waiting ${intervalSeconds}s`;
+  scheduleAutoVision(intervalMs);
+  emitSettings();
+}
+
+function scheduleAutoVision(delayMs) {
+  if (autoVisionTimer) {
+    clearTimeout(autoVisionTimer);
+  }
+  nextAutoVisionAt = Date.now() + delayMs;
+  autoVisionTimer = setTimeout(runAutoVisionTick, delayMs);
+}
+
+async function runAutoVisionTick() {
+  autoVisionTimer = null;
+  nextAutoVisionAt = null;
+
+  if (!settings.visionEnabled || !settings.autoVisionEnabled || !hasApiKey()) {
+    lastAutoVisionStatus = "off";
+    emitSettings();
+    return;
+  }
+
+  if (visionBusy) {
+    lastAutoVisionStatus = "busy, retrying";
+    scheduleAutoVision(2000);
+    emitSettings();
+    return;
+  }
+
+  if (settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
+    lastAutoVisionStatus = "bubble visible, retrying";
+    scheduleAutoVision(Math.max(settings.bubbleFadeMs + 250, 1000));
+    emitSettings();
+    return;
+  }
+
+  lastAutoVisionStatus = "checking screen";
+  emitSettings();
+  await runVisionRequest({ manual: false });
+
+  if (settings.visionEnabled && settings.autoVisionEnabled && hasApiKey()) {
+    const intervalMs = settings.autoScanIntervalSeconds * 1000;
+    autoVisionIntervalSeconds = settings.autoScanIntervalSeconds;
+    lastAutoVisionStatus = `waiting ${settings.autoScanIntervalSeconds}s`;
+    scheduleAutoVision(intervalMs);
+    emitSettings();
+  }
 }
 
 function stopAutoVision() {
   if (autoVisionTimer) {
-    clearInterval(autoVisionTimer);
+    clearTimeout(autoVisionTimer);
     autoVisionTimer = null;
   }
   autoVisionIntervalSeconds = null;
   nextAutoVisionAt = null;
+  lastAutoVisionStatus = "off";
   visionBusy = false;
 }
 
@@ -557,6 +604,8 @@ async function runVisionRequest({ manual }) {
     return;
   }
   if (!manual && settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
+    lastAutoVisionStatus = "bubble visible, skipped";
+    emitSettings();
     return;
   }
 
@@ -565,6 +614,10 @@ async function runVisionRequest({ manual }) {
   saveSettings();
 
   if (!check.ok) {
+    if (!manual) {
+      lastAutoVisionStatus = check.reason;
+      emitSettings();
+    }
     if (manual || ["missing-api-key", "daily-cap", "weekly-cap"].includes(check.reason)) {
       const messages = {
         "vision-disabled": "Turn Vision Mode on first.",
@@ -600,6 +653,9 @@ async function runVisionRequest({ manual }) {
       const sender = manual ? sendManualBubble : sendBubble;
       sender(result.tip, "wave");
     }
+    if (!manual) {
+      lastAutoVisionStatus = result.should_speak && result.tip ? "spoke" : "checked silently";
+    }
   } catch (error) {
     const message = error.code === "capture-failed"
       ? "I couldn't see the screen."
@@ -608,8 +664,14 @@ async function runVisionRequest({ manual }) {
         : "Vision request failed.";
     const sender = manual ? sendManualBubble : sendBubble;
     sender(message, "sad");
+    if (!manual) {
+      lastAutoVisionStatus = error.code === "capture-failed" ? "capture failed" : "request failed";
+    }
   } finally {
     visionBusy = false;
+    if (!manual) {
+      emitSettings();
+    }
   }
 }
 

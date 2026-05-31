@@ -164,10 +164,13 @@ const preloadSource = fs.readFileSync(path.join(root, "src/preload.js"), "utf8")
 if (!mainSource.includes("ipcMain.handle(\"vision:save\"") || !preloadSource.includes("ipcRenderer.invoke(\"vision:save\"")) {
   throw new Error("Vision settings save should use an acknowledged IPC flow");
 }
-if (!mainSource.includes("setInterval") || !mainSource.includes("const intervalMs = intervalSeconds * 1000")) {
+if (!mainSource.includes("setTimeout(runAutoVisionTick") || !mainSource.includes("const intervalMs = intervalSeconds * 1000")) {
   throw new Error("Auto Vision should schedule scans from autoScanIntervalSeconds");
 }
-if (!settingsSource.includes("closeAfterSave") || !settingsSource.includes("screenshot attempt every")) {
+if (!mainSource.includes("bubble visible, retrying") || !mainSource.includes("scheduleAutoVision(Math.max(settings.bubbleFadeMs + 250, 1000))")) {
+  throw new Error("Auto Vision should retry shortly when a bubble is visible");
+}
+if (!settingsSource.includes("closeAfterSave") || !settingsSource.includes("screenshot attempt every") || !settingsSource.includes("lastAutoVisionStatus")) {
   throw new Error("Vision settings should close after Save and show the active auto interval");
 }
 if (maskApiKey("sk-test1234abcd") !== "sk-...abcd") {

@@ -30,8 +30,9 @@ function updateTimingText(settings = lastPayload?.settings ?? {}) {
   const interval = Number(els.autoScanIntervalSeconds.value || settings.autoScanIntervalSeconds || 60);
   const cooldown = Number(els.visionCooldownSeconds.value || settings.visionCooldownSeconds || 90);
   const active = settings.autoVisionActive ? "Active" : "Saved";
+  const status = settings.lastAutoVisionStatus ? ` Status: ${settings.lastAutoVisionStatus}.` : "";
   const cooldownNote = cooldown > interval ? ` Cooldown is ${cooldown}s, so some checks can be skipped.` : "";
-  autoIntervalStatus.textContent = `${active}: screenshot attempt every ${interval}s.${cooldownNote}`;
+  autoIntervalStatus.textContent = `${active}: screenshot attempt every ${interval}s.${status}${cooldownNote}`;
 }
 
 function applyPayload(payload) {

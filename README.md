@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.3-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.3/MitaDesktopPet-2.0.3-Setup.exe)
+[MitaDesktopPet-2.0.4-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.4/MitaDesktopPet-2.0.4-Setup.exe)
 
 ## Features
 
@@ -60,6 +60,7 @@ Vision Settings lets you:
 - Enable or disable Auto Vision
 - Change scan interval and cooldown
 - See the exact Auto Vision screenshot interval currently configured
+- See Auto Vision status such as waiting, checking, retrying, cooldown, or request failed
 - Set daily and weekly request caps
 - View and reset usage counters
 
@@ -86,7 +87,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.3-Setup.exe
+dist/MitaDesktopPet-2.0.4-Setup.exe
 ```
 
 ## App Assets
