@@ -99,11 +99,13 @@ if (
   throw new Error("Normal bubbles should be cooldown-limited while priority vision bubbles can interrupt");
 }
 if (
-  !rendererSource.includes("Local animation bubbles stay tied to the current sprite animation") ||
+  !rendererSource.includes("\"Catch me!\"") ||
+  !rendererSource.includes("\"KYAAA~!\"") ||
+  !rendererSource.includes("const reactionMessages = [\"Hi!\", \"\\u266a~\", \"KYAAA~!\", \"h-huh...?\"]") ||
   rendererSource.includes("Baka... ich bin kein Button") ||
   rendererSource.includes("Andrej 😤")
 ) {
-  throw new Error("Local animation bubbles should stay animation-specific; strong personality belongs to AI reactions");
+  throw new Error("Local animation bubbles should use the v2.0.5 standard messages; strong personality belongs to AI reactions");
 }
 if (!rendererHtml.includes("ask-vision") || !rendererHtml.includes("vision-settings")) {
   throw new Error("Renderer markup is missing vision controls");
@@ -234,13 +236,14 @@ if (
   !prompt.includes("TSUNDERE_LEVEL = high") ||
   !prompt.includes("EMOJI_DENSITY = high") ||
   !prompt.includes("MAX_REACTION_LENGTH = 220") ||
-  !prompt.includes("Andrej's tiny living desktop pet") ||
+  !prompt.includes("the user's tiny living desktop pet") ||
   !prompt.includes("Do NOT sound neutral") ||
   !prompt.includes("Session memory since this app started") ||
   !prompt.includes("a test window") ||
-  !prompt.includes("tip field is the exact displayed Mita reaction")
+  !prompt.includes("tip field is the exact displayed Mita reaction") ||
+  prompt.includes("Andrej")
 ) {
-  throw new Error("Vision prompt should apply the tsundere/bubbly personality style with session memory");
+  throw new Error("Vision prompt should apply the tsundere/bubbly personality style with session memory and no real name");
 }
 if (!visionCoreSource.includes("const TSUNDERE_LEVEL = \"high\"") || !visionCoreSource.includes("const MAX_REACTION_LENGTH = 220")) {
   throw new Error("Mita personality style controls are missing");

@@ -14,18 +14,16 @@ const ANIMS = {
   shy: { row: 8, frames: 6, fps: 5 }
 };
 
-// Local animation bubbles stay tied to the current sprite animation.
-// Strong custom personality belongs to AI/Vision reactions in vision-core.js.
 const BUBBLES = {
-  idle: ["Ganz ruhig...", "♪~"],
-  run: ["Weeee~!", "Flitz!"],
-  walk: ["Tap tap...", "Kleiner Spaziergang."],
-  excited: ["Uiii~!", "Yay! ✨"],
-  jumping: ["Hop!", "Kyaa~!"],
-  sad: ["sniff...", "(´；ω；`)"],
-  shy: [">///<", "h-huh...?"],
-  pray: ["Bitte...", "🙏"],
-  wave: ["Hiii~", "Wink~"]
+  idle: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"],
+  run: ["Weeee~!", "Catch me!", "Hya!"],
+  walk: ["Weeee~!", "Catch me!", "Hya!"],
+  excited: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
+  jumping: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
+  sad: ["(\u00b4\uff1b\u03c9\uff1b`)", "sniff...", "uwaaaa..."],
+  shy: [">///<", "h-huh...?", "\u3042\u306e..."],
+  pray: ["\ud83d\ude4f", "Please...", "\u304a\u9858\u3044..."],
+  wave: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"]
 };
 
 const shell = document.getElementById("pet-shell");
@@ -172,12 +170,7 @@ function showBubble(mode, message, durationMs = 5000, options = {}) {
 }
 
 function showClickBubble() {
-  const reactionMessages = [
-    "poke?",
-    "hey~",
-    "♪~",
-    "h-huh...?"
-  ];
+  const reactionMessages = ["Hi!", "\u266a~", "KYAAA~!", "h-huh...?"];
   showBubble(currentMode, pick(reactionMessages), 5000);
 }
 
