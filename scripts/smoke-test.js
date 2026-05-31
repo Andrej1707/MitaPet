@@ -10,10 +10,15 @@ const requiredFiles = [
   "src/renderer.html",
   "src/renderer.js",
   "src/openai-vision.js",
+  "src/openai-voice.js",
   "src/vision-core.js",
+  "src/voice-core.js",
   "src/vision-settings.html",
   "src/vision-settings.js",
   "src/vision-settings.css",
+  "src/voice-settings.html",
+  "src/voice-settings.js",
+  "src/voice-settings.css",
   "src/styles.css",
   "assets/pet.json",
   "assets/spritesheet.webp"
@@ -55,6 +60,19 @@ for (const expected of [
 ]) {
   if (!mainSource.includes(expected)) {
     throw new Error(`Main process is missing: ${expected}`);
+  }
+}
+for (const expected of [
+  "Voice Mode",
+  "Mita Voice Output",
+  "Open Voice Settings",
+  "startVoiceKeyWatcher",
+  "setIgnoreMouseEvents",
+  "pet:set-click-through",
+  "voice:recording-complete"
+]) {
+  if (!mainSource.includes(expected)) {
+    throw new Error(`Main process is missing voice/click-through support: ${expected}`);
   }
 }
 
@@ -110,7 +128,7 @@ if (
 if (!rendererHtml.includes("ask-vision") || !rendererHtml.includes("vision-settings")) {
   throw new Error("Renderer markup is missing vision controls");
 }
-if (rendererSource.includes("sleep") || rendererHtml.includes("sleep") || mainSource.includes("sleep")) {
+if (rendererSource.includes("sleep") || rendererHtml.includes("sleep") || mainSource.includes("[\"sleep\"")) {
   throw new Error("Sleep mode should not be exposed or referenced");
 }
 if (!rendererSource.includes("sad: { row: 6, frames: 6")) {
@@ -130,6 +148,20 @@ for (const expected of [
 ]) {
   if (!visionSource.includes(expected)) {
     throw new Error(`OpenAI vision module is missing: ${expected}`);
+  }
+}
+
+const voiceSource = fs.readFileSync(path.join(root, "src/openai-voice.js"), "utf8");
+for (const expected of [
+  "https://api.openai.com/v1/audio/transcriptions",
+  "https://api.openai.com/v1/responses",
+  "https://api.openai.com/v1/audio/speech",
+  "gpt-4o-mini-transcribe",
+  "gpt-4o-mini-tts",
+  "parseVoiceReply"
+]) {
+  if (!voiceSource.includes(expected)) {
+    throw new Error(`OpenAI voice module is missing: ${expected}`);
   }
 }
 
@@ -159,6 +191,12 @@ const {
   parseVisionResult,
   recordVisionRequest
 } = require("../src/vision-core");
+const {
+  canMakeVoiceRequest,
+  normalizeVoiceSettings,
+  parseVoiceReply,
+  recordVoiceRequest
+} = require("../src/voice-core");
 
 const normalized = normalizeVisionSettings({});
 if (normalized.openaiModel !== "gpt-5.4-nano" || normalized.visionEnabled !== false) {
@@ -193,6 +231,37 @@ if (!mainSource.includes("runVisionRequest({ manual: false, priority: true })"))
 }
 if (!settingsSource.includes("closeAfterSave") || !settingsSource.includes("screenshot attempt every") || !settingsSource.includes("lastAutoVisionStatus")) {
   throw new Error("Vision settings should close after Save and show the active auto interval");
+}
+const voiceSettingsSource = fs.readFileSync(path.join(root, "src/voice-settings.html"), "utf8");
+const voiceSettingsJs = fs.readFileSync(path.join(root, "src/voice-settings.js"), "utf8");
+const petStyleSource = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
+if (
+  !voiceSettingsSource.includes("Enable Voice Mode") ||
+  !voiceSettingsSource.includes("gpt-5.4-nano") ||
+  !voiceSettingsSource.includes("gpt-4o-mini-transcribe") ||
+  !voiceSettingsSource.includes("gpt-4o-mini-tts") ||
+  !voiceSettingsJs.includes("window.mitaVoice.save")
+) {
+  throw new Error("Voice settings UI should expose the required voice controls and model defaults");
+}
+if (
+  !preloadSource.includes("openVoiceSettings") ||
+  !preloadSource.includes("mitaVoice") ||
+  !preloadSource.includes("voice:start-recording") ||
+  !rendererSource.includes("MediaRecorder") ||
+  !rendererSource.includes("setClickThrough") ||
+  !rendererSource.includes("recordingComplete") ||
+  !rendererHtml.includes("voice-settings")
+) {
+  throw new Error("Renderer/preload should expose push-to-talk voice and Voice Settings");
+}
+if (
+  !petStyleSource.includes("pointer-events: none") ||
+  !petStyleSource.includes("pointer-events: auto") ||
+  !petStyleSource.includes("#pet-bubble") ||
+  !petStyleSource.includes("pointer-events: none;")
+) {
+  throw new Error("Transparent overlay CSS should support click-through and nonblocking bubbles");
 }
 if (maskApiKey("sk-test1234abcd") !== "sk-...abcd") {
   throw new Error("API key masking is incorrect");
@@ -251,6 +320,50 @@ if (!visionCoreSource.includes("const TSUNDERE_LEVEL = \"high\"") || !visionCore
 const fallback = parseVisionResult("plain fallback text");
 if (!fallback.should_speak || !fallback.tip.includes("plain fallback") || !fallback.tip.includes("\u2728")) {
   throw new Error("Invalid JSON fallback failed");
+}
+
+const voiceDefaults = normalizeVoiceSettings({});
+if (
+  voiceDefaults.voiceModeEnabled !== false ||
+  voiceDefaults.pushToTalkKey !== "F8" ||
+  voiceDefaults.voiceChatModel !== "gpt-5.4-nano" ||
+  voiceDefaults.sttModel !== "gpt-4o-mini-transcribe" ||
+  voiceDefaults.ttsEnabled !== false ||
+  voiceDefaults.ttsModel !== "gpt-4o-mini-tts" ||
+  voiceDefaults.ttsVoice !== "coral"
+) {
+  throw new Error("Voice defaults are incorrect");
+}
+if (canMakeVoiceRequest({ ...voiceDefaults, voiceModeEnabled: true }, false).reason !== "missing-api-key") {
+  throw new Error("Voice missing API key behavior failed");
+}
+if (canMakeVoiceRequest({ ...voiceDefaults, voiceModeEnabled: false }, true).reason !== "voice-disabled") {
+  throw new Error("Voice disabled behavior failed");
+}
+const voiceCapped = {
+  ...voiceDefaults,
+  voiceModeEnabled: true,
+  voiceUsage: {
+    ...voiceDefaults.voiceUsage,
+    dailyVoiceRequests: 100,
+    weeklyVoiceRequests: 0,
+    lastVoiceDailyReset: new Date().toISOString().slice(0, 10)
+  }
+};
+if (canMakeVoiceRequest(voiceCapped, true).reason !== "daily-cap") {
+  throw new Error("Voice daily cap logic failed");
+}
+const voiceRequested = recordVoiceRequest({ ...voiceDefaults, voiceModeEnabled: true });
+if (voiceRequested.voiceUsage.dailyVoiceRequests !== 1 || voiceRequested.voiceUsage.weeklyVoiceRequests !== 1) {
+  throw new Error("Voice usage recording failed");
+}
+const voiceParsed = parseVoiceReply('{"reply":"Hi!","emotion":"excited","should_speak":true}');
+if (voiceParsed.reply !== "Hi!" || voiceParsed.emotion !== "excited" || !voiceParsed.should_speak) {
+  throw new Error("Voice JSON parsing failed");
+}
+const voiceFallback = parseVoiceReply("plain voice reply");
+if (!voiceFallback.should_speak || voiceFallback.reply !== "plain voice reply") {
+  throw new Error("Voice invalid JSON fallback failed");
 }
 
 console.log("Smoke test passed: project files, pet manifest, sprite asset, and core desktop-pet features are present.");

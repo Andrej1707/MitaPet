@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.8-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.8/MitaDesktopPet-2.0.8-Setup.exe)
+[MitaDesktopPet-2.0.9-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.9/MitaDesktopPet-2.0.9-Setup.exe)
 
 ## Features
 
@@ -26,6 +26,9 @@ Download the latest Windows installer from the GitHub release:
 - Right-click menu with quit and Windows autostart toggle
 - Double-click mini pet menu
 - Optional tray icon
+- Optional push-to-talk Voice Mode with separate Voice Settings
+- Optional OpenAI TTS voice output, off by default
+- Transparent empty areas around Mita pass clicks through to the desktop
 - Windows installer prepared with electron-builder
 
 ## OpenAI Vision Mode
@@ -68,6 +71,35 @@ Vision Settings lets you:
 - Set daily and weekly request caps
 - View and reset usage counters
 
+## Voice Chat Mode
+
+Voice Chat Mode is optional, push-to-talk only, and disabled by default. It uses the same locally saved OpenAI API key as Vision Mode, but its model settings are separate.
+
+Defaults:
+
+- Voice Mode: off
+- Push-to-talk key: `F8`
+- Voice chat model: `gpt-5.4-nano`
+- Speech-to-text model: `gpt-4o-mini-transcribe`
+- TTS: off
+- TTS model: `gpt-4o-mini-tts`
+- TTS voice: `coral`
+- Max recording: `20` seconds
+- Daily voice cap: `100`
+- Weekly voice cap: `500`
+
+Audio is sent to OpenAI only while you hold the push-to-talk key. There is no wake word, no continuous listening, and audio is not stored permanently by MitaDesktopPet. You can change the voice chat, STT, and TTS models in Voice Settings, or disable Voice Mode there at any time.
+
+## Changelog
+
+### v2.0.9
+
+- Added optional push-to-talk Voice Mode with configurable OpenAI models.
+- Added separate Voice Settings.
+- Added optional TTS output.
+- Fixed invisible click-blocking area around Mita.
+- Improved click-through behavior for transparent overlay areas.
+
 ## Run Locally
 
 ```powershell
@@ -91,7 +123,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.8-Setup.exe
+dist/MitaDesktopPet-2.0.9-Setup.exe
 ```
 
 ## App Assets

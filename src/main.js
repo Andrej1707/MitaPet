@@ -1,7 +1,9 @@
 const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, safeStorage, screen } = require("electron");
+const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { askOpenAIVision } = require("./openai-vision");
+const { askMitaVoice, createMitaSpeech, transcribeAudio } = require("./openai-voice");
 const {
   DEFAULT_OPENAI_MODEL,
   DEFAULT_VISION_SETTINGS,
@@ -11,6 +13,13 @@ const {
   recordVisionRequest,
   resetUsageCounters
 } = require("./vision-core");
+const {
+  DEFAULT_VOICE_SETTINGS,
+  canMakeVoiceRequest,
+  normalizeVoiceSettings,
+  recordVoiceRequest,
+  resetVoiceUsageCounters
+} = require("./voice-core");
 
 const WINDOW_WIDTH = 560;
 const WINDOW_HEIGHT = 560;
@@ -29,6 +38,7 @@ const MENU_MODES = [
 
 let mainWindow = null;
 let settingsWindow = null;
+let voiceSettingsWindow = null;
 let tray = null;
 let settings = {};
 let randomActionTimer = null;
@@ -39,6 +49,13 @@ let autoVisionIntervalSeconds = null;
 let nextAutoVisionAt = null;
 let lastAutoVisionStatus = "off";
 let visionBusy = false;
+let voiceBusy = false;
+let isRecording = false;
+let isTranscribing = false;
+let isThinking = false;
+let isSpeaking = false;
+let voiceKeyWatcher = null;
+let clickThroughEnabled = false;
 let bubbleVisible = false;
 let cleanCaptureState = null;
 let visionMemory = [];
@@ -70,8 +87,10 @@ function loadSettings() {
     position: null,
     startWithWindows: false,
     ...DEFAULT_VISION_SETTINGS,
+    ...DEFAULT_VOICE_SETTINGS,
     ...storedSettings
   });
+  settings = normalizeVoiceSettings(settings);
   if (!MENU_MODES.some(([mode]) => mode === settings.mode)) {
     settings.mode = "idle";
   }
@@ -155,6 +174,34 @@ function getVisionSettingsPayload(firstRun = false) {
   };
 }
 
+function getVoiceSettingsPayload() {
+  return {
+    settings: {
+      voiceModeEnabled: Boolean(settings.voiceModeEnabled),
+      pushToTalkKey: settings.pushToTalkKey,
+      voiceChatModel: settings.voiceChatModel || DEFAULT_VOICE_SETTINGS.voiceChatModel,
+      sttModel: settings.sttModel || DEFAULT_VOICE_SETTINGS.sttModel,
+      ttsEnabled: Boolean(settings.ttsEnabled),
+      ttsModel: settings.ttsModel || DEFAULT_VOICE_SETTINGS.ttsModel,
+      ttsVoice: settings.ttsVoice || DEFAULT_VOICE_SETTINGS.ttsVoice,
+      maxRecordingSeconds: settings.maxRecordingSeconds,
+      minRecordingMs: settings.minRecordingMs,
+      voiceDailyRequestCap: settings.voiceDailyRequestCap,
+      voiceWeeklyRequestCap: settings.voiceWeeklyRequestCap,
+      voiceCooldownMs: settings.voiceCooldownMs,
+      voiceLanguage: settings.voiceLanguage,
+      voiceReplyMaxTokens: settings.voiceReplyMaxTokens,
+      voiceUsage: settings.voiceUsage,
+      hasApiKey: hasApiKey(),
+      voiceBusy,
+      isRecording,
+      isTranscribing,
+      isThinking,
+      isSpeaking
+    }
+  };
+}
+
 function getDefaultPosition() {
   const display = screen.getPrimaryDisplay();
   const area = display.workArea;
@@ -234,6 +281,32 @@ function createContextMenu() {
     },
     { type: "separator" },
     {
+      label: `Voice Mode: ${settings.voiceModeEnabled ? "On" : "Off"}`,
+      type: "checkbox",
+      checked: Boolean(settings.voiceModeEnabled),
+      click: (menuItem) => toggleVoiceMode(menuItem.checked)
+    },
+    {
+      label: `Mita Voice Output: ${settings.ttsEnabled ? "On" : "Off"}`,
+      type: "checkbox",
+      checked: Boolean(settings.ttsEnabled),
+      click: (menuItem) => toggleVoiceOutput(menuItem.checked)
+    },
+    {
+      label: "Open Voice Settings",
+      click: () => openVoiceSettings()
+    },
+    {
+      label: "Test Microphone",
+      enabled: Boolean(settings.voiceModeEnabled),
+      click: () => beginVoiceRecording({ test: true })
+    },
+    {
+      label: "Test Mita Voice",
+      click: () => testMitaVoice()
+    },
+    { type: "separator" },
+    {
       label: "Unten rechts",
       click: () => {
         stopMove();
@@ -264,6 +337,7 @@ function emitSettings() {
   const payload = getVisionSettingsPayload(false).settings;
   mainWindow?.webContents.send("pet:settings", payload);
   settingsWindow?.webContents.send("vision:settings", getVisionSettingsPayload(false));
+  voiceSettingsWindow?.webContents.send("voice:settings", getVoiceSettingsPayload());
 }
 
 function showContextMenu() {
@@ -308,6 +382,9 @@ function createWindow() {
 
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.setAlwaysOnTop(true, "screen-saver");
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === "media");
+  });
   mainWindow.loadFile(path.join(__dirname, "renderer.html"));
 
   mainWindow.webContents.once("did-finish-load", () => {
@@ -318,6 +395,8 @@ function createWindow() {
     });
     scheduleRandomAction();
     startAutoVisionIfEnabled();
+    startVoiceKeyWatcher();
+    setTimeout(() => setClickThrough(true), 250);
     if (!settings.visionSetupSeen) {
       setTimeout(() => openVisionSettings(true), 600);
     }
@@ -328,6 +407,7 @@ function createWindow() {
     mainWindow = null;
     clearTimeout(randomActionTimer);
     stopAutoVision();
+    stopVoiceKeyWatcher();
     stopMove();
   });
 }
@@ -361,6 +441,34 @@ function openVisionSettings(firstRun) {
   });
   settingsWindow.on("closed", () => {
     settingsWindow = null;
+  });
+}
+
+function openVoiceSettings() {
+  if (voiceSettingsWindow) {
+    voiceSettingsWindow.focus();
+    voiceSettingsWindow.webContents.send("voice:settings", getVoiceSettingsPayload());
+    return;
+  }
+  voiceSettingsWindow = new BrowserWindow({
+    width: 560,
+    height: 780,
+    title: "Mita Voice Settings",
+    resizable: true,
+    minimizable: true,
+    maximizable: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  voiceSettingsWindow.loadFile(path.join(__dirname, "voice-settings.html"));
+  voiceSettingsWindow.webContents.once("did-finish-load", () => {
+    voiceSettingsWindow?.webContents.send("voice:settings", getVoiceSettingsPayload());
+  });
+  voiceSettingsWindow.on("closed", () => {
+    voiceSettingsWindow = null;
   });
 }
 
@@ -401,6 +509,39 @@ function toggleVisionMode(enabled) {
   }
 }
 
+function toggleVoiceMode(enabled) {
+  settings = normalizeVoiceSettings({
+    ...settings,
+    voiceModeEnabled: enabled
+  });
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  if (enabled) {
+    startVoiceKeyWatcher();
+    if (!hasApiKey()) {
+      sendManualBubble("Add your OpenAI API key first.", "wave", { priority: true });
+      openVoiceSettings();
+    } else {
+      sendManualBubble(`Voice Mode on. Hold ${settings.pushToTalkKey} to talk.`, "excited", { priority: true });
+    }
+  } else {
+    stopVoiceKeyWatcher();
+    sendBubble("Voice Mode off.", "idle", { priority: true });
+  }
+}
+
+function toggleVoiceOutput(enabled) {
+  settings = normalizeVoiceSettings({
+    ...settings,
+    ttsEnabled: enabled
+  });
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  sendBubble(enabled ? "Mita voice output on." : "Mita voice output off.", enabled ? "wave" : "idle", { priority: true });
+}
+
 function toggleAutoVision(enabled) {
   if (enabled && (!settings.visionEnabled || !hasApiKey())) {
     sendBubble("Add your OpenAI API key in Vision Settings first.", "wave");
@@ -418,6 +559,22 @@ function toggleAutoVision(enabled) {
     stopAutoVision();
     sendBubble("Auto Vision off.", "idle");
   }
+}
+
+function applyVoiceSettings(payload) {
+  settings = normalizeVoiceSettings({
+    ...settings,
+    ...(payload ?? {})
+  });
+  saveSettings();
+  updateMenus();
+  emitSettings();
+  if (settings.voiceModeEnabled) {
+    startVoiceKeyWatcher();
+  } else {
+    stopVoiceKeyWatcher();
+  }
+  return getVoiceSettingsPayload();
 }
 
 function clearApiKey() {
@@ -503,6 +660,12 @@ async function runAutoVisionTick() {
     emitSettings();
     return;
   }
+  if (voiceBusy) {
+    lastAutoVisionStatus = "voice busy, retrying";
+    scheduleAutoVision(2000);
+    emitSettings();
+    return;
+  }
 
   lastAutoVisionStatus = "checking screen";
   emitSettings();
@@ -554,6 +717,280 @@ function sendManualBubble(message, mode, options = {}) {
   });
 }
 
+function setClickThrough(enabled) {
+  if (!mainWindow || mainWindow.isDestroyed() || clickThroughEnabled === enabled) {
+    return;
+  }
+  clickThroughEnabled = enabled;
+  mainWindow.setIgnoreMouseEvents(enabled, { forward: true });
+}
+
+function getVirtualKeyCode(key) {
+  const upper = String(key || "F8").trim().toUpperCase();
+  const functionKey = upper.match(/^F([1-9]|1[0-9]|2[0-4])$/);
+  if (functionKey) {
+    return 0x70 + Number(functionKey[1]) - 1;
+  }
+  if (/^[A-Z]$/.test(upper) || /^[0-9]$/.test(upper)) {
+    return upper.charCodeAt(0);
+  }
+  if (upper === "SPACE") {
+    return 0x20;
+  }
+  return 0x77;
+}
+
+function startVoiceKeyWatcher() {
+  stopVoiceKeyWatcher();
+  if (!settings.voiceModeEnabled || !mainWindow) {
+    return;
+  }
+
+  const keyCode = getVirtualKeyCode(settings.pushToTalkKey);
+  const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public class KeyState {
+  [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
+}
+"@
+$key = ${keyCode}
+$wasDown = $false
+while ($true) {
+  $down = ([KeyState]::GetAsyncKeyState($key) -band 0x8000) -ne 0
+  if ($down -ne $wasDown) {
+    if ($down) { [Console]::Out.WriteLine("down") } else { [Console]::Out.WriteLine("up") }
+    [Console]::Out.Flush()
+    $wasDown = $down
+  }
+  Start-Sleep -Milliseconds 25
+}`;
+
+  try {
+    voiceKeyWatcher = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], {
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    let buffer = "";
+    voiceKeyWatcher.stdout.on("data", (chunk) => {
+      buffer += chunk.toString("utf8");
+      const lines = buffer.split(/\r?\n/);
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.trim() === "down") {
+          beginVoiceRecording();
+        } else if (line.trim() === "up") {
+          endVoiceRecording();
+        }
+      }
+    });
+    voiceKeyWatcher.on("exit", () => {
+      voiceKeyWatcher = null;
+    });
+  } catch {
+    voiceKeyWatcher = null;
+    sendBubble("Push-to-talk watcher could not start.", "sad", { priority: true });
+  }
+}
+
+function stopVoiceKeyWatcher() {
+  if (!voiceKeyWatcher) {
+    return;
+  }
+  const watcher = voiceKeyWatcher;
+  voiceKeyWatcher = null;
+  try {
+    watcher.kill();
+  } catch {
+    // Ignore watcher shutdown races.
+  }
+}
+
+function voiceErrorMessage(reason) {
+  return {
+    "voice-disabled": "Turn Voice Mode on first.",
+    "missing-api-key": "Add your OpenAI API key first.",
+    "daily-cap": "Voice budget reached for today.",
+    "weekly-cap": "Voice budget reached for this week.",
+    cooldown: "Tiny cooldown, try again in a sec."
+  }[reason] || "Voice is not ready.";
+}
+
+function mapVoiceEmotion(emotion) {
+  return {
+    happy: "excited",
+    shy: "shy",
+    excited: "excited",
+    sad: "sad",
+    pray: "pray",
+    sleep: "idle",
+    idle: "idle"
+  }[emotion] || "idle";
+}
+
+function beginVoiceRecording(options = {}) {
+  if (voiceBusy || isRecording || isTranscribing || isThinking || isSpeaking) {
+    return;
+  }
+  const check = canMakeVoiceRequest(settings, hasApiKey());
+  settings = check.settings;
+  saveSettings();
+  emitSettings();
+  if (!check.ok) {
+    sendManualBubble(voiceErrorMessage(check.reason), check.reason.includes("cap") ? "sad" : "wave", { priority: true });
+    if (check.reason === "missing-api-key") {
+      openVoiceSettings();
+    }
+    return;
+  }
+
+  voiceBusy = true;
+  isRecording = true;
+  emitSettings();
+  sendManualBubble(options.test ? "Mic test: hold and talk." : "Listening...", "pray", { priority: true });
+  mainWindow?.webContents.send("voice:start-recording", {
+    maxRecordingSeconds: settings.maxRecordingSeconds
+  });
+}
+
+function endVoiceRecording() {
+  if (!isRecording) {
+    return;
+  }
+  mainWindow?.webContents.send("voice:stop-recording");
+}
+
+function resetVoiceState() {
+  voiceBusy = false;
+  isRecording = false;
+  isTranscribing = false;
+  isThinking = false;
+  isSpeaking = false;
+  emitSettings();
+}
+
+async function handleVoiceRecordingComplete(payload = {}) {
+  const durationMs = Number(payload.durationMs || 0);
+  const bytes = Array.isArray(payload.bytes) ? payload.bytes : [];
+  isRecording = false;
+
+  if (durationMs < settings.minRecordingMs || bytes.length === 0) {
+    sendManualBubble("I couldn't hear that.", "shy", { priority: true });
+    resetVoiceState();
+    return;
+  }
+
+  const check = canMakeVoiceRequest(settings, hasApiKey());
+  settings = check.settings;
+  if (!check.ok) {
+    sendManualBubble(voiceErrorMessage(check.reason), check.reason.includes("cap") ? "sad" : "wave", { priority: true });
+    saveSettings();
+    resetVoiceState();
+    return;
+  }
+
+  try {
+    settings = recordVoiceRequest(settings);
+    saveSettings();
+    isTranscribing = true;
+    emitSettings();
+    sendManualBubble("Transcribing...", "pray", { priority: true });
+    const transcript = await transcribeAudio({
+      apiKey: getApiKey(),
+      settings,
+      audioBuffer: Buffer.from(bytes),
+      mimeType: payload.mimeType || "audio/webm"
+    });
+    isTranscribing = false;
+
+    if (!transcript) {
+      sendManualBubble("I couldn't hear that clearly.", "shy", { priority: true });
+      resetVoiceState();
+      return;
+    }
+
+    isThinking = true;
+    emitSettings();
+    sendManualBubble("Thinking...", "pray", { priority: true });
+    const reply = await askMitaVoice({
+      apiKey: getApiKey(),
+      settings,
+      transcript
+    });
+    isThinking = false;
+
+    if (reply.should_speak && reply.reply) {
+      const mode = mapVoiceEmotion(reply.emotion);
+      temporaryMode(mode, 1600);
+      sendManualBubble(reply.reply, mode, { priority: true });
+      if (settings.ttsEnabled) {
+        try {
+          isSpeaking = true;
+          emitSettings();
+          const audioBase64 = await createMitaSpeech({
+            apiKey: getApiKey(),
+            settings,
+            text: reply.reply
+          });
+          mainWindow?.webContents.send("voice:play-audio", {
+            base64: audioBase64,
+            mimeType: "audio/mpeg"
+          });
+        } catch {
+          isSpeaking = false;
+          emitSettings();
+        }
+      }
+    }
+  } catch (error) {
+    const message = error.statusCode === 400
+      ? "Voice model failed. Check Voice Settings."
+      : "Voice request failed.";
+    sendManualBubble(message, "sad", { priority: true });
+  } finally {
+    if (!isSpeaking) {
+      resetVoiceState();
+    } else {
+      isRecording = false;
+      isTranscribing = false;
+      isThinking = false;
+      emitSettings();
+    }
+  }
+}
+
+async function testMitaVoice() {
+  if (!hasApiKey()) {
+    sendManualBubble("Add your OpenAI API key first.", "wave", { priority: true });
+    openVoiceSettings();
+    return;
+  }
+  if (!settings.ttsEnabled) {
+    sendManualBubble("Mita voice output is off.", "idle", { priority: true });
+    return;
+  }
+  try {
+    isSpeaking = true;
+    emitSettings();
+    const text = "Mita voice test! Hi hi~";
+    sendManualBubble(text, "wave", { priority: true });
+    const audioBase64 = await createMitaSpeech({
+      apiKey: getApiKey(),
+      settings,
+      text
+    });
+    mainWindow?.webContents.send("voice:play-audio", {
+      base64: audioBase64,
+      mimeType: "audio/mpeg"
+    });
+  } catch {
+    isSpeaking = false;
+    emitSettings();
+    sendManualBubble("Voice output failed. Check Voice Settings.", "sad", { priority: true });
+  }
+}
+
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -561,7 +998,8 @@ function delay(ms) {
 async function beginCleanCapture() {
   cleanCaptureState = {
     wasPetVisible: Boolean(mainWindow?.isVisible()),
-    wasSettingsVisible: Boolean(settingsWindow?.isVisible())
+    wasSettingsVisible: Boolean(settingsWindow?.isVisible()),
+    wasVoiceSettingsVisible: Boolean(voiceSettingsWindow?.isVisible())
   };
 
   if (settings.hideBubblesDuringCapture) {
@@ -574,6 +1012,9 @@ async function beginCleanCapture() {
   if (settingsWindow && cleanCaptureState.wasSettingsVisible) {
     settingsWindow.hide();
   }
+  if (voiceSettingsWindow && cleanCaptureState.wasVoiceSettingsVisible) {
+    voiceSettingsWindow.hide();
+  }
 
   await delay(settings.captureDelayMs);
 }
@@ -582,13 +1023,16 @@ async function endCleanCapture() {
   if (!cleanCaptureState) {
     return;
   }
-  const { wasPetVisible, wasSettingsVisible } = cleanCaptureState;
+  const { wasPetVisible, wasSettingsVisible, wasVoiceSettingsVisible } = cleanCaptureState;
   cleanCaptureState = null;
   if (settings.hidePetDuringCapture && wasPetVisible) {
     mainWindow?.showInactive();
   }
   if (settingsWindow && wasSettingsVisible) {
     settingsWindow.show();
+  }
+  if (voiceSettingsWindow && wasVoiceSettingsVisible) {
+    voiceSettingsWindow.show();
   }
 }
 
@@ -597,6 +1041,11 @@ async function runVisionRequest({ manual, priority = false }) {
     if (manual) {
       sendBubble("Vision is already thinking.", "pray");
     }
+    return;
+  }
+  if (!manual && voiceBusy) {
+    lastAutoVisionStatus = "voice busy, retrying";
+    emitSettings();
     return;
   }
   if (!manual && !priority && settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
@@ -812,10 +1261,12 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  stopVoiceKeyWatcher();
   persistWindowPosition();
 });
 
 ipcMain.on("pet:drag-start", () => {
+  setClickThrough(false);
   stopMove();
 });
 
@@ -827,6 +1278,7 @@ ipcMain.on("pet:drag-end", (_event, position) => {
 ipcMain.on("pet:context-menu", showContextMenu);
 ipcMain.on("pet:clicked", () => temporaryMode("excited", 900));
 ipcMain.on("pet:set-mode", (_event, mode) => setMode(mode, true));
+ipcMain.on("pet:set-click-through", (_event, enabled) => setClickThrough(Boolean(enabled)));
 ipcMain.on("pet:bubble-visible", (_event, visible) => {
   bubbleVisible = Boolean(visible);
 });
@@ -854,8 +1306,33 @@ ipcMain.on("vision:reset-usage", () => {
   saveSettings();
   emitSettings();
 });
+ipcMain.on("pet:open-voice-settings", () => openVoiceSettings());
+ipcMain.handle("voice:save", (event, payload) => {
+  const result = applyVoiceSettings(payload);
+  event.sender.send("voice:settings", result);
+  return result;
+});
+ipcMain.on("voice:reset-usage", () => {
+  settings = resetVoiceUsageCounters(settings);
+  saveSettings();
+  emitSettings();
+});
+ipcMain.on("voice:test-microphone", () => beginVoiceRecording({ test: true }));
+ipcMain.on("voice:test-voice", () => testMitaVoice());
+ipcMain.on("voice:recording-complete", (_event, payload) => {
+  handleVoiceRecordingComplete(payload);
+});
+ipcMain.on("voice:recording-error", (_event, message) => {
+  sendManualBubble(message || "Microphone could not start.", "sad", { priority: true });
+  resetVoiceState();
+});
+ipcMain.on("voice:playback-ended", () => {
+  isSpeaking = false;
+  resetVoiceState();
+});
 ipcMain.handle("pet:get-state", () => ({
   settings: getVisionSettingsPayload(false).settings,
+  voiceSettings: getVoiceSettingsPayload().settings,
   petManifestPath,
   assetsDir
 }));

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mita Voice Settings</title>
+    <link rel="stylesheet" href="./voice-settings.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Mita Voice Chat</h1>
+        <p>Optional push-to-talk mode. Voice is off by default and uses your saved OpenAI API key.</p>
+      </header>
+
+      <section class="panel">
+        <label class="check">
+          <input id="voiceModeEnabled" type="checkbox" />
+          <span>Enable Voice Mode</span>
+        </label>
+        <label class="check">
+          <input id="ttsEnabled" type="checkbox" />
+          <span>Mita Voice Output</span>
+        </label>
+        <div class="grid">
+          <label>
+            Push-to-talk key
+            <input id="pushToTalkKey" type="text" spellcheck="false" />
+          </label>
+          <label>
+            Max recording seconds
+            <input id="maxRecordingSeconds" type="number" min="2" max="120" />
+          </label>
+          <label>
+            Minimum recording ms
+            <input id="minRecordingMs" type="number" min="100" max="10000" />
+          </label>
+          <label>
+            Cooldown ms
+            <input id="voiceCooldownMs" type="number" min="0" max="60000" />
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="grid">
+          <label>
+            Voice chat model
+            <input id="voiceChatModel" list="chatModels" spellcheck="false" />
+          </label>
+          <label>
+            Speech-to-text model
+            <input id="sttModel" list="sttModels" spellcheck="false" />
+          </label>
+          <label>
+            TTS model
+            <input id="ttsModel" list="ttsModels" spellcheck="false" />
+          </label>
+          <label>
+            TTS voice
+            <input id="ttsVoice" list="ttsVoices" spellcheck="false" />
+          </label>
+          <label>
+            Language
+            <input id="voiceLanguage" type="text" spellcheck="false" />
+          </label>
+          <label>
+            Reply token cap
+            <input id="voiceReplyMaxTokens" type="number" min="20" max="500" />
+          </label>
+        </div>
+        <datalist id="chatModels">
+          <option value="gpt-5.4-nano"></option>
+          <option value="gpt-5.4-mini"></option>
+          <option value="gpt-5.4"></option>
+          <option value="gpt-5.5"></option>
+        </datalist>
+        <datalist id="sttModels">
+          <option value="gpt-4o-mini-transcribe"></option>
+          <option value="gpt-4o-transcribe"></option>
+          <option value="whisper-1"></option>
+        </datalist>
+        <datalist id="ttsModels">
+          <option value="gpt-4o-mini-tts"></option>
+          <option value="tts-1"></option>
+          <option value="tts-1-hd"></option>
+        </datalist>
+        <datalist id="ttsVoices">
+          <option value="coral"></option>
+          <option value="alloy"></option>
+          <option value="ash"></option>
+          <option value="ballad"></option>
+          <option value="echo"></option>
+          <option value="fable"></option>
+          <option value="onyx"></option>
+          <option value="nova"></option>
+          <option value="sage"></option>
+          <option value="shimmer"></option>
+          <option value="verse"></option>
+          <option value="marin"></option>
+          <option value="cedar"></option>
+        </datalist>
+      </section>
+
+      <section class="panel">
+        <div class="grid">
+          <label>
+            Daily voice cap
+            <input id="voiceDailyRequestCap" type="number" min="1" max="10000" />
+          </label>
+          <label>
+            Weekly voice cap
+            <input id="voiceWeeklyRequestCap" type="number" min="1" max="50000" />
+          </label>
+        </div>
+        <div class="usage">
+          <span>Today: <strong id="dailyVoiceUsage">0</strong></span>
+          <span>This week: <strong id="weeklyVoiceUsage">0</strong></span>
+          <span id="apiKeyStatus">API key: not saved</span>
+        </div>
+      </section>
+
+      <p class="note">
+        Push-to-talk uses global key polling; in some games it may be unreliable. Audio is sent only while you hold the key and is not stored permanently.
+      </p>
+
+      <footer>
+        <button id="saveAll" type="button">Save</button>
+        <button id="testMic" type="button">Test Microphone</button>
+        <button id="testVoice" type="button">Test Mita Voice</button>
+        <button id="resetUsage" type="button">Reset Usage</button>
+        <span id="saveStatus"></span>
+      </footer>
+    </main>
+    <script src="./voice-settings.js"></script>
+  </body>
+</html>

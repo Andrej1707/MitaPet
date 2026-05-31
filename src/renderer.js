@@ -35,6 +35,7 @@ const nameEl = document.getElementById("pet-name");
 const descriptionEl = document.getElementById("pet-description");
 const askVisionButton = document.getElementById("ask-vision");
 const visionSettingsButton = document.getElementById("vision-settings");
+const voiceSettingsButton = document.getElementById("voice-settings");
 
 let animationFrameId = 0;
 let lastFrameAt = 0;
@@ -52,6 +53,12 @@ let bubbleVisible = false;
 let bubbleFadeTimer = 0;
 let currentBubblePriority = false;
 let nextNormalBubbleAllowedAt = 0;
+let clickThroughActive = false;
+let mediaRecorder = null;
+let mediaStream = null;
+let mediaChunks = [];
+let recordingStartedAt = 0;
+let recordingStopTimer = 0;
 
 function normalizeMode(mode) {
   if (mode === "walk-left" || mode === "walk-right") {
@@ -176,10 +183,12 @@ function showClickBubble() {
 
 function showMenu() {
   menu.hidden = !menu.hidden;
+  updateClickThrough();
 }
 
 function hideMenu() {
   menu.hidden = true;
+  updateClickThrough();
 }
 
 function applySettings(settings) {
@@ -190,12 +199,106 @@ function applySettings(settings) {
   askVisionButton.disabled = false;
 }
 
+function pointInRect(x, y, rect) {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function setClickThrough(enabled) {
+  if (clickThroughActive === enabled) {
+    return;
+  }
+  clickThroughActive = enabled;
+  window.mitaPet.setClickThrough(enabled);
+}
+
+function updateClickThrough(event) {
+  if (drag) {
+    setClickThrough(false);
+    return;
+  }
+  if (!event) {
+    setClickThrough(menu.hidden);
+    return;
+  }
+  const x = event.clientX;
+  const y = event.clientY;
+  const overPet = pointInRect(x, y, hitbox.getBoundingClientRect());
+  const overMenu = !menu.hidden && pointInRect(x, y, menu.getBoundingClientRect());
+  setClickThrough(!(overPet || overMenu));
+}
+
+function stopMediaStream() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+  }
+  window.clearTimeout(recordingStopTimer);
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+}
+
+async function startRecording({ maxRecordingSeconds } = {}) {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    return;
+  }
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaChunks = [];
+    const options = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+      ? { mimeType: "audio/webm;codecs=opus" }
+      : {};
+    mediaRecorder = new MediaRecorder(mediaStream, options);
+    recordingStartedAt = Date.now();
+    mediaRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) {
+        mediaChunks.push(event.data);
+      }
+    });
+    mediaRecorder.addEventListener("stop", async () => {
+      const mimeType = mediaRecorder.mimeType || "audio/webm";
+      const durationMs = Date.now() - recordingStartedAt;
+      const blob = new Blob(mediaChunks, { type: mimeType });
+      const buffer = await blob.arrayBuffer();
+      stopMediaStream();
+      window.mitaVoice.recordingComplete({
+        bytes: Array.from(new Uint8Array(buffer)),
+        durationMs,
+        mimeType
+      });
+      mediaRecorder = null;
+      mediaChunks = [];
+    });
+    mediaRecorder.start();
+    recordingStopTimer = window.setTimeout(stopRecording, Math.max(2, Number(maxRecordingSeconds || 20)) * 1000);
+  } catch {
+    stopMediaStream();
+    mediaRecorder = null;
+    window.mitaVoice.recordingError("Microphone could not start.");
+  }
+}
+
+function playVoiceAudio({ base64, mimeType }) {
+  if (!base64) {
+    window.mitaVoice.playbackEnded();
+    return;
+  }
+  const audio = new Audio(`data:${mimeType || "audio/mpeg"};base64,${base64}`);
+  audio.addEventListener("ended", () => window.mitaVoice.playbackEnded(), { once: true });
+  audio.addEventListener("error", () => window.mitaVoice.playbackEnded(), { once: true });
+  audio.play().catch(() => window.mitaVoice.playbackEnded());
+}
+
 window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
   nameEl.textContent = manifest.displayName ?? "MitaPet";
   descriptionEl.textContent = manifest.description ?? "Desktop pet";
   sprite.style.backgroundImage = `url("${spritesheetUrl}")`;
   play(mode ?? "idle", { forceBubble: false });
   window.mitaPet.getState().then(({ settings }) => applySettings(settings));
+  updateClickThrough();
 });
 
 window.mitaPet.onMode((mode) => play(mode));
@@ -207,6 +310,7 @@ hitbox.addEventListener("pointerdown", (event) => {
   if (event.button !== 0) {
     return;
   }
+  setClickThrough(false);
   hitbox.setPointerCapture(event.pointerId);
   window.mitaPet.dragStart();
   drag = {
@@ -236,6 +340,7 @@ hitbox.addEventListener("pointerup", (event) => {
   window.mitaPet.dragEnd({ x: window.screenX, y: window.screenY });
   clickSuppressUntil = Date.now() + 200;
   drag = null;
+  updateClickThrough(event);
 });
 
 hitbox.addEventListener("click", () => {
@@ -272,8 +377,20 @@ visionSettingsButton.addEventListener("click", () => {
   window.mitaPet.openVisionSettings();
 });
 
+voiceSettingsButton.addEventListener("click", () => {
+  window.mitaPet.openVoiceSettings();
+});
+
+window.mitaVoice.onStartRecording(startRecording);
+window.mitaVoice.onStopRecording(stopRecording);
+window.mitaVoice.onPlayAudio(playVoiceAudio);
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     hideMenu();
   }
 });
+
+document.addEventListener("mousemove", updateClickThrough);
+document.addEventListener("mouseleave", () => setClickThrough(true));
+document.addEventListener("mouseenter", updateClickThrough);
