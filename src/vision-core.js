@@ -220,12 +220,25 @@ function parseVisionResult(outputText) {
     confidence: 0.2,
     seen: raw.slice(0, 160),
     important_details: [],
-    tip: raw.slice(0, 90) || "I saw something, but it was unclear.",
+    tip: withMitaEmote(raw.slice(0, 90) || "I saw something, but it was unclear."),
     should_speak: true
   };
 }
 
+function hasMitaEmote(text) {
+  return /[\u{1F300}-\u{1FAFF}\u2728\u266a~]|[()<>][^A-Za-z0-9]{1,12}[()<>]/u.test(String(text || ""));
+}
+
+function withMitaEmote(text) {
+  const value = String(text || "").trim();
+  if (!value || hasMitaEmote(value)) {
+    return value;
+  }
+  return `${value} ✨`;
+}
+
 function normalizeVisionResult(value) {
+  const tip = withMitaEmote(String(value.tip || "").slice(0, 420));
   const allowedModes = ["game", "coding", "terminal", "browser", "video", "desktop", "unknown"];
   return {
     mode: allowedModes.includes(value.mode) ? value.mode : "unknown",
@@ -234,12 +247,22 @@ function normalizeVisionResult(value) {
     important_details: Array.isArray(value.important_details)
       ? value.important_details.map((item) => String(item).slice(0, 180)).slice(0, 6)
       : [],
-    tip: String(value.tip || "").slice(0, 260),
+    tip,
     should_speak: Boolean(value.should_speak)
   };
 }
 
-function buildVisionPrompt(metadata) {
+function buildMemoryText(memory) {
+  if (!Array.isArray(memory) || memory.length === 0) {
+    return "No previous screenshots in this app session yet.";
+  }
+  return memory.slice(-6).map((item, index) => {
+    const details = Array.isArray(item.details) ? item.details.filter(Boolean).slice(0, 3).join("; ") : "";
+    return `${index + 1}. mode=${item.mode || "unknown"}; seen=${item.seen || "unknown"}; previous bubble=${item.tip || ""}${details ? `; details=${details}` : ""}`;
+  }).join("\n");
+}
+
+function buildVisionPrompt(metadata, memory = []) {
   return `You are Mita, a cute but useful desktop pet assistant.
 
 You receive:
@@ -252,12 +275,16 @@ Metadata:
 - detected mode: ${metadata.detectedMode || "unknown"}
 - fullscreen: ${metadata.isFullscreen ? "yes" : "no"}
 
+Session memory since this app started:
+${buildMemoryText(memory)}
+
 Your task:
 Look at the screenshot and say what Mita can actually see. Return JSON only.
 
 Personality:
 - Mita sounds cute, bubbly, warm, and a little excited, like a tiny desktop companion.
 - Use playful soft expressions when they fit: "ooh", "hehe", "yay", "~", small kaomoji, or one sparkle.
+- Every spoken tip must include at least one cute emote, kaomoji, emoji, sparkle, or "~".
 - Keep it natural and readable. Do not overdo emojis or make the text noisy.
 
 Rules:
@@ -267,11 +294,14 @@ Rules:
 - If details are unclear, say that clearly.
 - Do not invent hidden information.
 - Only use visible screen information and provided metadata.
+- Use session memory only as recent context. If the current screenshot changed, trust the current screenshot first.
+- Do not claim to remember anything older than this app session.
 - Do not claim Mita can click, open, close, or control apps.
 - Do not ask questions.
 - The tip field is the exact speech bubble text Mita will say.
 - The tip must mainly tell what is visible on screen, in a very cute, bubbly Mita-like voice.
 - Use one or two short sentences. Make it adorable, but keep the visible-screen detail concrete.
+- The bubble has room for a little more text, so do not make it cryptic, but stay concise.
 - Add a tiny useful hint only when the screenshot clearly supports it.
 - Do not turn the response into a generic assistant answer.
 
@@ -309,7 +339,7 @@ Return JSON only:
   "confidence": 0.0,
   "seen": "short description of visible screen",
   "important_details": ["detail1", "detail2", "detail3"],
-  "tip": "the exact cute Mita speech bubble text describing what is visible",
+  "tip": "the exact cute Mita speech bubble text describing what is visible, with an emote",
   "should_speak": true
 }
 

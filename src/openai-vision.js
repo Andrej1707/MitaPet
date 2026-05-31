@@ -189,7 +189,7 @@ async function askOpenAIVision({ apiKey, settings }) {
     throw error;
   }
 
-  const prompt = buildVisionPrompt(metadata);
+  const prompt = buildVisionPrompt(metadata, settings.visionMemory);
   const response = await postJson("https://api.openai.com/v1/responses", apiKey, {
     model: settings.openaiModel || "gpt-5.4-nano",
     input: [{

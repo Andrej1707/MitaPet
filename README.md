@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.5-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.5/MitaDesktopPet-2.0.5-Setup.exe)
+[MitaDesktopPet-2.0.6-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.6/MitaDesktopPet-2.0.6-Setup.exe)
 
 ## Features
 
@@ -19,6 +19,7 @@ Download the latest Windows installer from the GitHub release:
 - Smooth requestAnimationFrame sprite animation
 - Random wandering, hopping, emotes, and short click reactions
 - Fading speech bubbles that size dynamically to the text
+- Larger Vision bubbles with extra transparent window space so screenshot text has room
 - Normal animation bubbles only appear at animation start and have a quiet pause before the next normal bubble
 - Mouse dragging with saved position
 - Right-click menu with quit and Windows autostart toggle
@@ -62,6 +63,7 @@ Vision Settings lets you:
 - Change scan interval and cooldown
 - See the exact Auto Vision screenshot interval currently configured
 - See Auto Vision status such as waiting, checking, retrying, cooldown, or request failed
+- Give Mita short session memory from previous Vision observations since the app started
 - Set daily and weekly request caps
 - View and reset usage counters
 
@@ -88,7 +90,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.5-Setup.exe
+dist/MitaDesktopPet-2.0.6-Setup.exe
 ```
 
 ## App Assets

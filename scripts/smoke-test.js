@@ -87,6 +87,9 @@ const petStyles = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
 if (!petStyles.includes("width: fit-content") || petStyles.includes("min-width: 210px")) {
   throw new Error("Speech bubble should size dynamically to its text");
 }
+if (!mainSource.includes("const WINDOW_WIDTH = 560") || !mainSource.includes("const WINDOW_HEIGHT = 560") || !petStyles.includes("max-width: 500px")) {
+  throw new Error("Vision bubbles need enough transparent window space for longer text");
+}
 if (
   !rendererSource.includes("NORMAL_BUBBLE_PAUSE_MS = 5000") ||
   !rendererSource.includes("nextNormalBubbleAllowedAt") ||
@@ -211,15 +214,24 @@ if (requested.usage.dailyCount !== 1 || requested.usage.weeklyCount !== 1) {
   throw new Error("Usage recording failed");
 }
 const parsed = parseVisionResult('{"mode":"coding","confidence":0.8,"seen":"test","important_details":["a"],"tip":"Looks good","should_speak":true}');
-if (parsed.mode !== "coding" || parsed.tip !== "Looks good") {
+if (parsed.mode !== "coding" || parsed.tip !== "Looks good ✨") {
   throw new Error("JSON parsing failed");
 }
-const prompt = buildVisionPrompt({ processName: "Code.exe", windowTitle: "main.js", detectedMode: "coding", isFullscreen: false });
-if (!prompt.includes("what Mita can actually see") || !prompt.includes("very cute, bubbly Mita-like voice") || !prompt.includes("tiny desktop companion")) {
-  throw new Error("Vision prompt should ask for cute bubbly visible-screen observations");
+const prompt = buildVisionPrompt(
+  { processName: "Code.exe", windowTitle: "main.js", detectedMode: "coding", isFullscreen: false },
+  [{ mode: "coding", seen: "a test window", tip: "I saw tests running ✨", details: ["green output"] }]
+);
+if (
+  !prompt.includes("what Mita can actually see") ||
+  !prompt.includes("very cute, bubbly Mita-like voice") ||
+  !prompt.includes("Every spoken tip must include") ||
+  !prompt.includes("Session memory since this app started") ||
+  !prompt.includes("a test window")
+) {
+  throw new Error("Vision prompt should ask for cute bubbly visible-screen observations with session memory");
 }
 const fallback = parseVisionResult("plain fallback text");
-if (!fallback.should_speak || !fallback.tip.includes("plain fallback")) {
+if (!fallback.should_speak || !fallback.tip.includes("plain fallback") || !fallback.tip.includes("✨")) {
   throw new Error("Invalid JSON fallback failed");
 }
 

@@ -75,8 +75,8 @@ body {
   bottom: 224px;
   box-sizing: border-box;
   width: fit-content;
-  max-width: 330px;
-  padding: 12px 15px;
+  max-width: 500px;
+  padding: 13px 17px;
   border: 1px solid rgb(255 255 255 / 20%);
   border-radius: 16px;
   color: #fff;
@@ -84,7 +84,7 @@ body {
   box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
   font-size: 14px;
   font-weight: 700;
-  line-height: 1.32;
+  line-height: 1.36;
   opacity: 0;
   pointer-events: none;
   text-align: center;

@@ -12,8 +12,8 @@ const {
   resetUsageCounters
 } = require("./vision-core");
 
-const WINDOW_WIDTH = 380;
-const WINDOW_HEIGHT = 390;
+const WINDOW_WIDTH = 560;
+const WINDOW_HEIGHT = 560;
 const MOVE_STEP_MS = 16;
 const RANDOM_ACTION_MIN_MS = 4500;
 const RANDOM_ACTION_MAX_MS = 12000;
@@ -41,6 +41,7 @@ let lastAutoVisionStatus = "off";
 let visionBusy = false;
 let bubbleVisible = false;
 let cleanCaptureState = null;
+let visionMemory = [];
 
 const assetsDir = path.join(__dirname, "..", "assets");
 const petManifestPath = path.join(assetsDir, "pet.json");
@@ -639,10 +640,12 @@ async function runVisionRequest({ manual, priority = false }) {
       apiKey: getApiKey(),
       settings: {
         ...settings,
+        visionMemory,
         beforeCapture: beginCleanCapture,
         afterCapture: endCleanCapture
       }
     });
+    rememberVisionResult(result);
     if (result.should_speak && result.tip) {
       temporaryMode(result.mode === "game" ? "excited" : result.mode === "terminal" || result.mode === "coding" ? "pray" : "wave", 1600);
       const sender = manual ? sendManualBubble : sendBubble;
@@ -668,6 +671,20 @@ async function runVisionRequest({ manual, priority = false }) {
       emitSettings();
     }
   }
+}
+
+function rememberVisionResult(result) {
+  if (!result) {
+    return;
+  }
+  visionMemory.push({
+    at: new Date().toISOString(),
+    mode: result.mode,
+    seen: result.seen,
+    details: result.important_details,
+    tip: result.tip
+  });
+  visionMemory = visionMemory.slice(-6);
 }
 
 function persistWindowPosition() {
