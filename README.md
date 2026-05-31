@@ -8,7 +8,7 @@ MitaDesktopPet is a standalone Windows desktop pet app. It uses Electron to show
 
 Download the latest Windows installer from the GitHub release:
 
-[MitaDesktopPet-2.0.7-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.7/MitaDesktopPet-2.0.7-Setup.exe)
+[MitaDesktopPet-2.0.8-Setup.exe](https://github.com/Andrej1707/MitaPet/releases/download/v2.0.8/MitaDesktopPet-2.0.8-Setup.exe)
 
 ## Features
 
@@ -91,7 +91,7 @@ npm run dist
 The installer is created at:
 
 ```text
-dist/MitaDesktopPet-2.0.7-Setup.exe
+dist/MitaDesktopPet-2.0.8-Setup.exe
 ```
 
 ## App Assets
