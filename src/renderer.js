@@ -1,5 +1,6 @@
 const FRAME_WIDTH = 192;
 const FRAME_HEIGHT = 208;
+const NORMAL_BUBBLE_PAUSE_MS = 5000;
 
 const ANIMS = {
   idle: { row: 0, frames: 6, fps: 6 },
@@ -48,8 +49,9 @@ let currentSettings = {
   hasApiKey: false
 };
 let bubbleVisible = false;
-let bubbleQueue = [];
 let bubbleFadeTimer = 0;
+let currentBubblePriority = false;
+let nextNormalBubbleAllowedAt = 0;
 
 function normalizeMode(mode) {
   if (mode === "walk-left" || mode === "walk-right") {
@@ -126,29 +128,32 @@ function clearBubble() {
   window.clearTimeout(bubbleFadeTimer);
   bubble.classList.remove("visible");
   bubble.hidden = true;
-  bubbleQueue = [];
+  currentBubblePriority = false;
   notifyBubbleVisible(false);
 }
 
 function finishBubble(fadeMs = 500) {
+  const wasPriority = currentBubblePriority;
   bubble.classList.remove("visible");
   bubbleFadeTimer = window.setTimeout(() => {
     bubble.hidden = true;
-    notifyBubbleVisible(false);
-    const next = bubbleQueue.shift();
-    if (next) {
-      showBubble(next.mode, next.message, next.durationMs, { manual: false });
+    currentBubblePriority = false;
+    if (!wasPriority) {
+      nextNormalBubbleAllowedAt = Date.now() + NORMAL_BUBBLE_PAUSE_MS;
     }
+    notifyBubbleVisible(false);
   }, fadeMs);
 }
 
 function showBubble(mode, message, durationMs = 5000, options = {}) {
-  const isManual = options.manual === true;
-  if (bubbleVisible && !isManual) {
-    bubbleQueue.push({ mode, message, durationMs });
+  const isPriority = options.priority === true || options.manual === true;
+  if (!isPriority && Date.now() < nextNormalBubbleAllowedAt) {
     return;
   }
-  if (bubbleVisible && isManual) {
+  if (bubbleVisible && !isPriority) {
+    return;
+  }
+  if (bubbleVisible && isPriority) {
     clearBubble();
   }
   const messages = BUBBLES[mode] ?? BUBBLES.idle;
@@ -156,6 +161,7 @@ function showBubble(mode, message, durationMs = 5000, options = {}) {
   bubble.hidden = false;
   window.clearTimeout(bubbleTimer);
   window.clearTimeout(bubbleFadeTimer);
+  currentBubblePriority = isPriority;
   notifyBubbleVisible(true);
   window.requestAnimationFrame(() => bubble.classList.add("visible"));
   bubbleTimer = window.setTimeout(() => {
@@ -165,7 +171,7 @@ function showBubble(mode, message, durationMs = 5000, options = {}) {
 
 function showClickBubble() {
   const reactionMessages = ["Hi!", "\u266a~", "KYAAA~!", "h-huh...?"];
-  showBubble(currentMode, pick(reactionMessages), 5000, { manual: true });
+  showBubble(currentMode, pick(reactionMessages), 5000);
 }
 
 function showMenu() {
@@ -193,7 +199,7 @@ window.mitaPet.onInit(({ manifest, mode, spritesheetUrl }) => {
 });
 
 window.mitaPet.onMode((mode) => play(mode));
-window.mitaPet.onBubble(({ message, mode, durationMs, manual }) => showBubble(mode ?? currentMode, message, durationMs, { manual }));
+window.mitaPet.onBubble(({ message, mode, durationMs, manual, priority }) => showBubble(mode ?? currentMode, message, durationMs, { manual, priority }));
 window.mitaPet.onClearBubble(() => clearBubble());
 window.mitaPet.onSettings((settings) => applySettings(settings));
 

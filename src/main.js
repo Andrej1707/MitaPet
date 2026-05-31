@@ -503,16 +503,9 @@ async function runAutoVisionTick() {
     return;
   }
 
-  if (settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
-    lastAutoVisionStatus = "bubble visible, retrying";
-    scheduleAutoVision(Math.max(settings.bubbleFadeMs + 250, 1000));
-    emitSettings();
-    return;
-  }
-
   lastAutoVisionStatus = "checking screen";
   emitSettings();
-  await runVisionRequest({ manual: false });
+  await runVisionRequest({ manual: false, priority: true });
 
   if (settings.visionEnabled && settings.autoVisionEnabled && hasApiKey()) {
     const intervalMs = settings.autoScanIntervalSeconds * 1000;
@@ -534,7 +527,7 @@ function stopAutoVision() {
   visionBusy = false;
 }
 
-function sendBubble(message, mode) {
+function sendBubble(message, mode, options = {}) {
   if (!message || !mainWindow) {
     return;
   }
@@ -542,11 +535,12 @@ function sendBubble(message, mode) {
     message,
     mode,
     durationMs: settings.bubbleDurationMs,
-    manual: false
+    manual: false,
+    priority: Boolean(options.priority)
   });
 }
 
-function sendManualBubble(message, mode) {
+function sendManualBubble(message, mode, options = {}) {
   if (!message || !mainWindow) {
     return;
   }
@@ -554,7 +548,8 @@ function sendManualBubble(message, mode) {
     message,
     mode,
     durationMs: settings.bubbleDurationMs,
-    manual: true
+    manual: true,
+    priority: options.priority !== false
   });
 }
 
@@ -596,14 +591,14 @@ async function endCleanCapture() {
   }
 }
 
-async function runVisionRequest({ manual }) {
+async function runVisionRequest({ manual, priority = false }) {
   if (visionBusy) {
     if (manual) {
       sendBubble("Vision is already thinking.", "pray");
     }
     return;
   }
-  if (!manual && settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
+  if (!manual && !priority && settings.skipAutoScanWhenBubbleVisible && bubbleVisible) {
     lastAutoVisionStatus = "bubble visible, skipped";
     emitSettings();
     return;
@@ -651,7 +646,7 @@ async function runVisionRequest({ manual }) {
     if (result.should_speak && result.tip) {
       temporaryMode(result.mode === "game" ? "excited" : result.mode === "terminal" || result.mode === "coding" ? "pray" : "wave", 1600);
       const sender = manual ? sendManualBubble : sendBubble;
-      sender(result.tip, "wave");
+      sender(result.tip, "wave", { priority: true });
     }
     if (!manual) {
       lastAutoVisionStatus = result.should_speak && result.tip ? "spoke" : "checked silently";
@@ -663,7 +658,7 @@ async function runVisionRequest({ manual }) {
         ? "OpenAI model setting seems invalid."
         : "Vision request failed.";
     const sender = manual ? sendManualBubble : sendBubble;
-    sender(message, "sad");
+    sender(message, "sad", { priority: true });
     if (!manual) {
       lastAutoVisionStatus = error.code === "capture-failed" ? "capture failed" : "request failed";
     }

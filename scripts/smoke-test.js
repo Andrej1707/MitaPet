@@ -87,6 +87,14 @@ const petStyles = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
 if (!petStyles.includes("width: fit-content") || petStyles.includes("min-width: 210px")) {
   throw new Error("Speech bubble should size dynamically to its text");
 }
+if (
+  !rendererSource.includes("NORMAL_BUBBLE_PAUSE_MS = 5000") ||
+  !rendererSource.includes("nextNormalBubbleAllowedAt") ||
+  rendererSource.includes("bubbleQueue") ||
+  !rendererSource.includes("options.priority === true")
+) {
+  throw new Error("Normal bubbles should be cooldown-limited while priority vision bubbles can interrupt");
+}
 if (!rendererHtml.includes("ask-vision") || !rendererHtml.includes("vision-settings")) {
   throw new Error("Renderer markup is missing vision controls");
 }
@@ -167,8 +175,8 @@ if (!mainSource.includes("ipcMain.handle(\"vision:save\"") || !preloadSource.inc
 if (!mainSource.includes("setTimeout(runAutoVisionTick") || !mainSource.includes("const intervalMs = intervalSeconds * 1000")) {
   throw new Error("Auto Vision should schedule scans from autoScanIntervalSeconds");
 }
-if (!mainSource.includes("bubble visible, retrying") || !mainSource.includes("scheduleAutoVision(Math.max(settings.bubbleFadeMs + 250, 1000))")) {
-  throw new Error("Auto Vision should retry shortly when a bubble is visible");
+if (!mainSource.includes("runVisionRequest({ manual: false, priority: true })")) {
+  throw new Error("Auto Vision screenshot requests should have priority over normal bubbles");
 }
 if (!settingsSource.includes("closeAfterSave") || !settingsSource.includes("screenshot attempt every") || !settingsSource.includes("lastAutoVisionStatus")) {
   throw new Error("Vision settings should close after Save and show the active auto interval");
@@ -207,8 +215,8 @@ if (parsed.mode !== "coding" || parsed.tip !== "Looks good") {
   throw new Error("JSON parsing failed");
 }
 const prompt = buildVisionPrompt({ processName: "Code.exe", windowTitle: "main.js", detectedMode: "coding", isFullscreen: false });
-if (!prompt.includes("what Mita can actually see") || !prompt.includes("cute Mita-like voice")) {
-  throw new Error("Vision prompt should ask for cute visible-screen observations");
+if (!prompt.includes("what Mita can actually see") || !prompt.includes("very cute, bubbly Mita-like voice") || !prompt.includes("tiny desktop companion")) {
+  throw new Error("Vision prompt should ask for cute bubbly visible-screen observations");
 }
 const fallback = parseVisionResult("plain fallback text");
 if (!fallback.should_speak || !fallback.tip.includes("plain fallback")) {
