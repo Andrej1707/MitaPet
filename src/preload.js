@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld("mitaPet", {
 
 contextBridge.exposeInMainWorld("mitaVision", {
   onSettings: (callback) => ipcRenderer.on("vision:settings", (_event, payload) => callback(payload)),
-  save: (settings) => ipcRenderer.send("vision:save", settings),
+  save: (settings) => ipcRenderer.invoke("vision:save", settings),
   skipFirstRun: () => ipcRenderer.send("vision:skip-first-run"),
   clearApiKey: () => ipcRenderer.send("vision:clear-api-key"),
   resetUsage: () => ipcRenderer.send("vision:reset-usage")

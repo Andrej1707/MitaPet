@@ -15,7 +15,7 @@
 
       <section class="notice">
         <strong>Privacy</strong>
-        <p>OpenAI Vision Mode sends screenshots of your active window/screen to OpenAI for analysis. MitaDesktopPet does not store screenshots permanently. Vision Mode is optional and disabled by default.</p>
+        <p>OpenAI Vision Mode sends screenshots of your primary screen to OpenAI for analysis. MitaDesktopPet does not store screenshots permanently. Vision Mode is optional and disabled by default.</p>
         <p>Do not enable Auto Vision when private content is visible. You can use Manual Ask instead of Auto Vision.</p>
       </section>
 
@@ -67,6 +67,7 @@
         <label>
           Auto interval seconds
           <input id="autoScanIntervalSeconds" type="number" min="15" max="3600" />
+          <small id="autoIntervalStatus"></small>
         </label>
 
         <label>
@@ -92,6 +93,7 @@
       </section>
 
       <footer>
+        <small id="saveStatus" role="status"></small>
         <button id="saveAll" type="button">Save and Enable</button>
         <button id="skip" type="button">Skip</button>
       </footer>

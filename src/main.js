@@ -35,6 +35,8 @@ let randomActionTimer = null;
 let moveTimer = null;
 let currentMove = null;
 let autoVisionTimer = null;
+let autoVisionIntervalSeconds = null;
+let nextAutoVisionAt = null;
 let visionBusy = false;
 let bubbleVisible = false;
 let cleanCaptureState = null;
@@ -141,6 +143,9 @@ function getVisionSettingsPayload(firstRun = false) {
       bubbleDurationMs: settings.bubbleDurationMs,
       bubbleFadeMs: settings.bubbleFadeMs,
       captureDelayMs: settings.captureDelayMs,
+      autoVisionActive: Boolean(autoVisionTimer),
+      activeAutoScanIntervalSeconds: autoVisionIntervalSeconds,
+      nextAutoVisionAt,
       hasApiKey: Boolean(apiKey),
       maskedApiKey: maskApiKey(apiKey)
     }
@@ -202,7 +207,9 @@ function createContextMenu() {
       click: (menuItem) => toggleVisionMode(menuItem.checked)
     },
     {
-      label: `Auto Vision: ${settings.autoVisionEnabled ? "On" : "Off"}`,
+      label: settings.autoVisionEnabled
+        ? `Auto Vision: On (${settings.autoScanIntervalSeconds}s)`
+        : "Auto Vision: Off",
       type: "checkbox",
       enabled: Boolean(settings.visionEnabled && keyExists),
       checked: Boolean(settings.autoVisionEnabled),
@@ -403,7 +410,7 @@ function toggleAutoVision(enabled) {
   emitSettings();
   if (enabled) {
     startAutoVisionIfEnabled();
-    sendBubble("Auto Vision on.", "pray");
+    sendBubble(`Auto Vision on: every ${settings.autoScanIntervalSeconds}s.`, "pray");
   } else {
     stopAutoVision();
     sendBubble("Auto Vision off.", "idle");
@@ -421,19 +428,20 @@ function clearApiKey() {
 }
 
 function applyVisionSettings(payload) {
+  const { openaiApiKey, closeAfterSave: _closeAfterSave, ...settingPayload } = payload ?? {};
   const previousKey = getApiKey();
   const next = normalizeVisionSettings({
     ...settings,
-    ...payload
+    ...settingPayload
   });
   settings = {
     ...settings,
     ...next,
     openaiApiKeyEncrypted: settings.openaiApiKeyEncrypted
   };
-  if (typeof payload.openaiApiKey === "string" && payload.openaiApiKey.trim()) {
-    encryptApiKey(payload.openaiApiKey);
-  } else if (!previousKey && payload.openaiApiKey === "") {
+  if (typeof openaiApiKey === "string" && openaiApiKey.trim()) {
+    encryptApiKey(openaiApiKey);
+  } else if (!previousKey && openaiApiKey === "") {
     delete settings.openaiApiKeyEncrypted;
   }
   if (!settings.visionEnabled) {
@@ -459,9 +467,14 @@ function startAutoVisionIfEnabled() {
   if (!settings.visionEnabled || !settings.autoVisionEnabled || !hasApiKey()) {
     return;
   }
+  const intervalSeconds = settings.autoScanIntervalSeconds;
+  const intervalMs = intervalSeconds * 1000;
+  autoVisionIntervalSeconds = intervalSeconds;
+  nextAutoVisionAt = Date.now() + intervalMs;
   autoVisionTimer = setInterval(() => {
+    nextAutoVisionAt = Date.now() + intervalMs;
     runVisionRequest({ manual: false });
-  }, settings.autoScanIntervalSeconds * 1000);
+  }, intervalMs);
 }
 
 function stopAutoVision() {
@@ -469,6 +482,8 @@ function stopAutoVision() {
     clearInterval(autoVisionTimer);
     autoVisionTimer = null;
   }
+  autoVisionIntervalSeconds = null;
+  nextAutoVisionAt = null;
   visionBusy = false;
 }
 
@@ -743,8 +758,17 @@ ipcMain.on("pet:bubble-visible", (_event, visible) => {
 });
 ipcMain.on("pet:open-vision-settings", () => openVisionSettings(false));
 ipcMain.on("pet:ask-vision", () => runVisionRequest({ manual: true }));
-ipcMain.on("vision:save", (event, payload) => {
-  event.sender.send("vision:settings", applyVisionSettings(payload));
+ipcMain.handle("vision:save", (event, payload) => {
+  const result = applyVisionSettings(payload);
+  event.sender.send("vision:settings", result);
+  if (payload?.closeAfterSave) {
+    setTimeout(() => {
+      if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.close();
+      }
+    }, 80);
+  }
+  return result;
 });
 ipcMain.on("vision:skip-first-run", () => {
   skipVisionSetup();

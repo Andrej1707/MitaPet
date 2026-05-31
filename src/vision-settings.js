@@ -19,9 +19,20 @@ const dailyUsage = document.getElementById("dailyUsage");
 const weeklyUsage = document.getElementById("weeklyUsage");
 const title = document.getElementById("title");
 const subtitle = document.getElementById("subtitle");
+const autoIntervalStatus = document.getElementById("autoIntervalStatus");
+const saveStatus = document.getElementById("saveStatus");
+const saveAllButton = document.getElementById("saveAll");
 
 let lastPayload = null;
 let isFirstRun = false;
+
+function updateTimingText(settings = lastPayload?.settings ?? {}) {
+  const interval = Number(els.autoScanIntervalSeconds.value || settings.autoScanIntervalSeconds || 60);
+  const cooldown = Number(els.visionCooldownSeconds.value || settings.visionCooldownSeconds || 90);
+  const active = settings.autoVisionActive ? "Active" : "Saved";
+  const cooldownNote = cooldown > interval ? ` Cooldown is ${cooldown}s, so some checks can be skipped.` : "";
+  autoIntervalStatus.textContent = `${active}: screenshot attempt every ${interval}s.${cooldownNote}`;
+}
 
 function applyPayload(payload) {
   lastPayload = payload;
@@ -47,9 +58,11 @@ function applyPayload(payload) {
   jpegQualityText.textContent = `${els.jpegQuality.value}%`;
   dailyUsage.textContent = settings.usage?.dailyCount ?? 0;
   weeklyUsage.textContent = settings.usage?.weeklyCount ?? 0;
+  saveStatus.textContent = "";
+  updateTimingText(settings);
 }
 
-function readSettings(enableOnSave = false) {
+function readSettings(enableOnSave = false, options = {}) {
   return {
     visionEnabled: enableOnSave || els.visionEnabled.checked,
     autoVisionEnabled: els.autoVisionEnabled.checked,
@@ -62,7 +75,8 @@ function readSettings(enableOnSave = false) {
     visionCooldownSeconds: Number(els.visionCooldownSeconds.value),
     dailyRequestCap: Number(els.dailyRequestCap.value),
     weeklyRequestCap: Number(els.weeklyRequestCap.value),
-    visionSetupSeen: true
+    visionSetupSeen: true,
+    closeAfterSave: Boolean(options.closeAfterSave)
   };
 }
 
@@ -72,12 +86,31 @@ els.jpegQuality.addEventListener("input", () => {
   jpegQualityText.textContent = `${els.jpegQuality.value}%`;
 });
 
+els.autoScanIntervalSeconds.addEventListener("input", () => updateTimingText());
+els.visionCooldownSeconds.addEventListener("input", () => updateTimingText());
+
 document.getElementById("saveKey").addEventListener("click", () => {
-  window.mitaVision.save(readSettings(false));
+  saveStatus.textContent = "Saving...";
+  window.mitaVision.save(readSettings(false))
+    .then(() => {
+      saveStatus.textContent = "Saved.";
+    })
+    .catch(() => {
+      saveStatus.textContent = "Save failed.";
+    });
 });
 
 document.getElementById("saveAll").addEventListener("click", () => {
-  window.mitaVision.save(readSettings(isFirstRun));
+  saveAllButton.disabled = true;
+  saveStatus.textContent = "Saving...";
+  window.mitaVision.save(readSettings(true, { closeAfterSave: true }))
+    .then(() => {
+      saveStatus.textContent = "Saved.";
+    })
+    .catch(() => {
+      saveAllButton.disabled = false;
+      saveStatus.textContent = "Save failed.";
+    });
 });
 
 document.getElementById("skip").addEventListener("click", () => {

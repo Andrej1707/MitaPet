@@ -83,6 +83,10 @@ const rendererHtml = fs.readFileSync(path.join(root, "src/renderer.html"), "utf8
 if (!rendererHtml.includes("pet-bubble")) {
   throw new Error("Renderer markup is missing the bubble element");
 }
+const petStyles = fs.readFileSync(path.join(root, "src/styles.css"), "utf8");
+if (!petStyles.includes("width: fit-content") || petStyles.includes("min-width: 210px")) {
+  throw new Error("Speech bubble should size dynamically to its text");
+}
 if (!rendererHtml.includes("ask-vision") || !rendererHtml.includes("vision-settings")) {
   throw new Error("Renderer markup is missing vision controls");
 }
@@ -150,6 +154,21 @@ if (
   normalized.captureDelayMs !== 200
 ) {
   throw new Error("Clean capture defaults are incorrect");
+}
+const customInterval = normalizeVisionSettings({ autoScanIntervalSeconds: 23 });
+if (customInterval.autoScanIntervalSeconds !== 23) {
+  throw new Error("Auto Vision interval should be configurable");
+}
+const settingsSource = fs.readFileSync(path.join(root, "src/vision-settings.js"), "utf8");
+const preloadSource = fs.readFileSync(path.join(root, "src/preload.js"), "utf8");
+if (!mainSource.includes("ipcMain.handle(\"vision:save\"") || !preloadSource.includes("ipcRenderer.invoke(\"vision:save\"")) {
+  throw new Error("Vision settings save should use an acknowledged IPC flow");
+}
+if (!mainSource.includes("setInterval") || !mainSource.includes("const intervalMs = intervalSeconds * 1000")) {
+  throw new Error("Auto Vision should schedule scans from autoScanIntervalSeconds");
+}
+if (!settingsSource.includes("closeAfterSave") || !settingsSource.includes("screenshot attempt every")) {
+  throw new Error("Vision settings should close after Save and show the active auto interval");
 }
 if (maskApiKey("sk-test1234abcd") !== "sk-...abcd") {
   throw new Error("API key masking is incorrect");

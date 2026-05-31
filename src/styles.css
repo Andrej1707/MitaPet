@@ -73,8 +73,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: 224px;
-  width: max-content;
-  min-width: 210px;
+  box-sizing: border-box;
+  width: fit-content;
   max-width: 330px;
   padding: 12px 15px;
   border: 1px solid rgb(255 255 255 / 20%);
@@ -87,6 +87,7 @@ body {
   line-height: 1.32;
   opacity: 0;
   pointer-events: none;
+  text-align: center;
   transform: translateX(-50%) translateY(8px);
   transition: opacity 180ms ease, transform 180ms ease;
   overflow-wrap: anywhere;
