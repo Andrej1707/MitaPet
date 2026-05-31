@@ -12,8 +12,8 @@ const {
   resetUsageCounters
 } = require("./vision-core");
 
-const WINDOW_WIDTH = 220;
-const WINDOW_HEIGHT = 310;
+const WINDOW_WIDTH = 380;
+const WINDOW_HEIGHT = 390;
 const MOVE_STEP_MS = 16;
 const RANDOM_ACTION_MIN_MS = 4500;
 const RANDOM_ACTION_MAX_MS = 12000;

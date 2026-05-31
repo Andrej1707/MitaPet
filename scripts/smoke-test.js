@@ -129,6 +129,7 @@ for (const forbidden of ["PaddleOCR", "puddle", "Ollama", "Gemma", "Qwen", "scre
 const {
   canMakeVisionRequest,
   detectMode,
+  buildVisionPrompt,
   maskApiKey,
   normalizeVisionSettings,
   parseVisionResult,
@@ -182,6 +183,10 @@ if (requested.usage.dailyCount !== 1 || requested.usage.weeklyCount !== 1) {
 const parsed = parseVisionResult('{"mode":"coding","confidence":0.8,"seen":"test","important_details":["a"],"tip":"Looks good","should_speak":true}');
 if (parsed.mode !== "coding" || parsed.tip !== "Looks good") {
   throw new Error("JSON parsing failed");
+}
+const prompt = buildVisionPrompt({ processName: "Code.exe", windowTitle: "main.js", detectedMode: "coding", isFullscreen: false });
+if (!prompt.includes("what Mita can actually see") || !prompt.includes("cute Mita-like voice")) {
+  throw new Error("Vision prompt should ask for cute visible-screen observations");
 }
 const fallback = parseVisionResult("plain fallback text");
 if (!fallback.should_speak || !fallback.tip.includes("plain fallback")) {

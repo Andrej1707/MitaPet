@@ -20,7 +20,7 @@ body {
 
 #pet-hitbox {
   position: absolute;
-  left: 14px;
+  left: 50%;
   bottom: 10px;
   width: 192px;
   height: 208px;
@@ -29,6 +29,7 @@ body {
   border: 0;
   background: transparent;
   cursor: grab;
+  transform: translateX(-50%);
   -webkit-app-region: no-drag;
 }
 
@@ -70,10 +71,12 @@ body {
 
 #pet-bubble {
   position: absolute;
-  left: 110px;
-  bottom: 218px;
-  max-width: 188px;
-  padding: 8px 11px;
+  left: 50%;
+  bottom: 224px;
+  width: max-content;
+  min-width: 210px;
+  max-width: 330px;
+  padding: 12px 15px;
   border: 1px solid rgb(255 255 255 / 20%);
   border-radius: 16px;
   color: #fff;
@@ -81,11 +84,12 @@ body {
   box-shadow: 0 10px 24px rgb(0 0 0 / 20%);
   font-size: 14px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.32;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(8px);
   transition: opacity 180ms ease, transform 180ms ease;
+  overflow-wrap: anywhere;
   white-space: normal;
 }
 
