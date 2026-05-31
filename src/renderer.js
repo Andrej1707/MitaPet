@@ -15,15 +15,15 @@ const ANIMS = {
 };
 
 const BUBBLES = {
-  idle: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"],
-  run: ["Weeee~!", "Catch me!", "Hya!"],
-  walk: ["Weeee~!", "Catch me!", "Hya!"],
-  excited: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
-  jumping: ["KYAAA~!", "YAY!! \u2728", "SUGOI!!"],
-  sad: ["(\u00b4\uff1b\u03c9\uff1b`)", "sniff...", "uwaaaa..."],
-  shy: [">///<", "h-huh...?", "\u3042\u306e..."],
-  pray: ["\ud83d\ude4f", "Please...", "\u304a\u9858\u3044..."],
-  wave: ["(^\u30fb\u03c9\u30fb^) Hiii~", "\u266a~"]
+  idle: ["Nyaa... ich beobachte dich nicht, Andrej 😤👀💕", "Tsk... alles ruhig hier 🌸✨"],
+  run: ["Weeee~! Fang mich doch, Baka 😭✨", "Strategischer Rückzug!! 😤💨"],
+  walk: ["Ich patrouilliere nur deinen Desktop, Bro 👀💕", "Tsk... Kontrollrunde 😤✨"],
+  excited: ["Uiii!! Fortschritt detected?! 😳✨💖", "Okayyy, das war cute gut 😤🌸"],
+  jumping: ["KYAAA~! Desktop-Hop! 😭✨", "H-Hä?! Ich bin nicht excited 😤💖"],
+  sad: ["Baka... das sah stressig aus 😭💻", "Ich mach mir keine Sorgen... maybe 🥺💕"],
+  shy: [">///< N-nicht so gucken, Andrej 😳🌸", "H-Hä?! Ich war nicht süß!! 😤💖"],
+  pray: ["Na gut... ich helf dir halt 🙏✨", "Bitte kein Chaos mehr, Bro 😭💻"],
+  wave: ["H-Hiii~ Nicht, dass ich dich vermisst hab 😤💕", "Hehe, erwischt 👀✨"]
 };
 
 const shell = document.getElementById("pet-shell");
@@ -170,7 +170,12 @@ function showBubble(mode, message, durationMs = 5000, options = {}) {
 }
 
 function showClickBubble() {
-  const reactionMessages = ["Hi!", "\u266a~", "KYAAA~!", "h-huh...?"];
+  const reactionMessages = [
+    "H-Hä?! Nicht so plötzlich, Andrej 😤💖",
+    "Baka... ich bin kein Button 😭👀",
+    "Tsk... ja ja, ich bin da 🌸✨",
+    "Nyaa?! Du wolltest Aufmerksamkeit, oder? 😳💕"
+  ];
   showBubble(currentMode, pick(reactionMessages), 5000);
 }
 

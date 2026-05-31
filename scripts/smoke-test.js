@@ -94,7 +94,9 @@ if (
   !rendererSource.includes("NORMAL_BUBBLE_PAUSE_MS = 5000") ||
   !rendererSource.includes("nextNormalBubbleAllowedAt") ||
   rendererSource.includes("bubbleQueue") ||
-  !rendererSource.includes("options.priority === true")
+  !rendererSource.includes("options.priority === true") ||
+  !rendererSource.includes("Baka") ||
+  !rendererSource.includes("Andrej")
 ) {
   throw new Error("Normal bubbles should be cooldown-limited while priority vision bubbles can interrupt");
 }
@@ -172,6 +174,7 @@ if (customInterval.autoScanIntervalSeconds !== 23) {
 }
 const settingsSource = fs.readFileSync(path.join(root, "src/vision-settings.js"), "utf8");
 const preloadSource = fs.readFileSync(path.join(root, "src/preload.js"), "utf8");
+const visionCoreSource = fs.readFileSync(path.join(root, "src/vision-core.js"), "utf8");
 if (!mainSource.includes("ipcMain.handle(\"vision:save\"") || !preloadSource.includes("ipcRenderer.invoke(\"vision:save\"")) {
   throw new Error("Vision settings save should use an acknowledged IPC flow");
 }
@@ -214,24 +217,31 @@ if (requested.usage.dailyCount !== 1 || requested.usage.weeklyCount !== 1) {
   throw new Error("Usage recording failed");
 }
 const parsed = parseVisionResult('{"mode":"coding","confidence":0.8,"seen":"test","important_details":["a"],"tip":"Looks good","should_speak":true}');
-if (parsed.mode !== "coding" || parsed.tip !== "Looks good ✨") {
+if (parsed.mode !== "coding" || parsed.tip !== "Looks good \u2728" || parsed.tip.length > 220) {
   throw new Error("JSON parsing failed");
 }
 const prompt = buildVisionPrompt(
   { processName: "Code.exe", windowTitle: "main.js", detectedMode: "coding", isFullscreen: false },
-  [{ mode: "coding", seen: "a test window", tip: "I saw tests running ✨", details: ["green output"] }]
+  [{ mode: "coding", seen: "a test window", tip: "I saw tests running \u2728", details: ["green output"] }]
 );
 if (
-  !prompt.includes("what Mita can actually see") ||
-  !prompt.includes("very cute, bubbly Mita-like voice") ||
-  !prompt.includes("Every spoken tip must include") ||
+  !prompt.includes("MITA PERSONALITY STYLE PATCH START") ||
+  !prompt.includes("TSUNDERE_LEVEL = high") ||
+  !prompt.includes("EMOJI_DENSITY = high") ||
+  !prompt.includes("MAX_REACTION_LENGTH = 220") ||
+  !prompt.includes("Andrej's tiny living desktop pet") ||
+  !prompt.includes("Do NOT sound neutral") ||
   !prompt.includes("Session memory since this app started") ||
-  !prompt.includes("a test window")
+  !prompt.includes("a test window") ||
+  !prompt.includes("tip field is the exact displayed Mita reaction")
 ) {
-  throw new Error("Vision prompt should ask for cute bubbly visible-screen observations with session memory");
+  throw new Error("Vision prompt should apply the tsundere/bubbly personality style with session memory");
+}
+if (!visionCoreSource.includes("const TSUNDERE_LEVEL = \"high\"") || !visionCoreSource.includes("const MAX_REACTION_LENGTH = 220")) {
+  throw new Error("Mita personality style controls are missing");
 }
 const fallback = parseVisionResult("plain fallback text");
-if (!fallback.should_speak || !fallback.tip.includes("plain fallback") || !fallback.tip.includes("✨")) {
+if (!fallback.should_speak || !fallback.tip.includes("plain fallback") || !fallback.tip.includes("\u2728")) {
   throw new Error("Invalid JSON fallback failed");
 }
 
