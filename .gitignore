@@ -1,4 +1,6 @@
 node_modules/
+site/node_modules/
+site/dist/
 dist/win-unpacked/
 dist/*.exe
 dist/*.blockmap
